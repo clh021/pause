@@ -294,11 +294,11 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
             </div>
 
             {/* Screenshot thumbnails on timeline */}
-            {activity!.shots.length > 0 && (
+            {activity && activity.shots && activity.shots.length > 0 && (
               <div className="mt-3 space-y-2">
                 <p className="text-xs font-medium text-[var(--text-secondary)]">{t(locale, 'controlShots')}</p>
                 <div className="flex flex-wrap gap-2">
-                  {activity!.shots.map((shot) => (
+                  {activity.shots.map((shot) => (
                     <button
                       key={shot.name}
                       type="button"
