@@ -16,14 +16,13 @@ import type {
   ActivitySummary
 } from './types';
 
-const WEB_API_BASE = 'http://localhost:18680';
-
 function isWebMode(): boolean {
   return !(window as unknown as { go?: { app?: { App?: unknown } } }).go?.app?.App;
 }
 
 async function webFetch(path: string, options: RequestInit = {}): Promise<Response> {
-  const url = `${WEB_API_BASE}${path}`;
+  const base = isWebMode() ? '' : 'http://localhost:18680';
+  const url = `${base}${path}`;
   const res = await fetch(url, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
@@ -286,7 +285,8 @@ export async function takeScreenshot(): Promise<Blob> {
 }
 
 export function getScreenshotUrl(): string {
-  return `${WEB_API_BASE}/screenshot`;
+  const base = isWebMode() ? '' : 'http://localhost:18680';
+  return `${base}/screenshot`;
 }
 
 export async function getActivity(fromSec?: number, toSec?: number): Promise<ActivitySummary> {
@@ -314,7 +314,8 @@ export async function setAutoScreenshot(enabled: boolean): Promise<boolean> {
 }
 
 export function getShotUrl(name: string): string {
-  return `${WEB_API_BASE}/shots/${encodeURIComponent(name)}`;
+  const base = isWebMode() ? '' : 'http://localhost:18680';
+  return `${base}/shots/${encodeURIComponent(name)}`;
 }
 
 type RuntimeBrowserBridge = {
