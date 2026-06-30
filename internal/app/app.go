@@ -111,7 +111,13 @@ func (a *App) startRemoteServer(ctx context.Context) error {
 	if !cfg.Enabled {
 		return nil
 	}
-	server, err := remoteserver.NewServer(cfg, a.engine, a.desktop.PrepareForScreenshot)
+	server, err := remoteserver.NewServer(cfg, remoteserver.Services{
+		Engine:                         a.engine,
+		ReminderService:                a.reminders,
+		AnalyticsService:               a.analytics,
+		SettingsService:                a.settingsSvc,
+		NotificationCapabilityProvider: a.notificationCapability,
+	}, a.desktop.PrepareForScreenshot)
 	if err != nil {
 		return err
 	}

@@ -39,7 +39,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	writeJSON(w, http.StatusOK, newStatusResponse(s.engine.GetRuntimeState(s.now())))
+	writeJSON(w, http.StatusOK, newStatusResponse(s.services.Engine.GetRuntimeState(s.now())))
 }
 
 func (s *Server) handlePause(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +47,7 @@ func (s *Server) handlePause(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	writeJSON(w, http.StatusOK, newStatusResponse(s.engine.Pause(s.now())))
+	writeJSON(w, http.StatusOK, newStatusResponse(s.services.Engine.Pause(s.now())))
 }
 
 func (s *Server) handleResume(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +55,7 @@ func (s *Server) handleResume(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	writeJSON(w, http.StatusOK, newStatusResponse(s.engine.Resume(s.now())))
+	writeJSON(w, http.StatusOK, newStatusResponse(s.services.Engine.Resume(s.now())))
 }
 
 func (s *Server) handleSkipBreak(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +63,7 @@ func (s *Server) handleSkipBreak(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	state, err := s.engine.SkipCurrentBreak(s.now(), bootstrap.SkipModeNormal)
+	state, err := s.services.Engine.SkipCurrentBreak(s.now(), bootstrap.SkipModeNormal)
 	if err != nil {
 		writeServerError(w, err)
 		return
@@ -89,7 +89,7 @@ func (s *Server) handleTriggerBreak(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state, err := s.engine.StartBreakNow(now)
+	state, err := s.services.Engine.StartBreakNow(now)
 	if err != nil {
 		writeServerError(w, err)
 		return

@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	defaultBindAddress        = "127.0.0.1"
+	defaultBindAddress        = "0.0.0.0"
 	defaultPort               = 18680
 	defaultTriggerCooldownSec = 60
 	configFileName            = "remote_server.json"
@@ -28,7 +28,7 @@ type Config struct {
 // DefaultConfig returns the safe default remote server configuration.
 func DefaultConfig() Config {
 	return Config{
-		Enabled:            false,
+		Enabled:            true,
 		BindAddress:        defaultBindAddress,
 		Port:               defaultPort,
 		TriggerCooldownSec: defaultTriggerCooldownSec,

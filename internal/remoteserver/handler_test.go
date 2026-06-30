@@ -179,7 +179,7 @@ func newTestServer(t *testing.T, engine *fakeEngine) *Server {
 	t.Helper()
 	return &Server{
 		cfg:             DefaultConfig(),
-		engine:          engine,
+		services:        Services{Engine: engine},
 		screenshots:     &ScreenshotService{capturer: fakeScreenshotCapturer{png: []byte("test-png")}, dir: t.TempDir(), now: time.Now},
 		now:             time.Now,
 		triggerCooldown: 60 * time.Second,

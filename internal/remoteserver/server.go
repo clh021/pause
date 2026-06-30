@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"pause/internal/backend/bootstrap"
 	"pause/internal/logx"
 )
 
@@ -18,7 +17,7 @@ type PrepareScreenshotFunc func(ctx context.Context) (restore func(), err error)
 // Server exposes a lightweight remote control surface for the local network.
 type Server struct {
 	cfg              Config
-	engine           bootstrap.RuntimeEngine
+	services         Services
 	screenshots      *ScreenshotService
 	beforeScreenshot PrepareScreenshotFunc
 	httpServer       *http.Server
@@ -26,11 +25,12 @@ type Server struct {
 	triggerCooldown  time.Duration
 	triggerMu        sync.Mutex
 	lastTriggerAt    time.Time
+	staticFileServer http.Handler
 }
 
 // NewServer constructs the remote HTTP server.
-func NewServer(cfg Config, engine bootstrap.RuntimeEngine, beforeScreenshot PrepareScreenshotFunc) (*Server, error) {
-	if engine == nil {
+func NewServer(cfg Config, services Services, beforeScreenshot PrepareScreenshotFunc) (*Server, error) {
+	if services.Engine == nil {
 		return nil, errors.New("runtime engine is required")
 	}
 	capturer := NewScreenshotCapturer()
@@ -41,11 +41,12 @@ func NewServer(cfg Config, engine bootstrap.RuntimeEngine, beforeScreenshot Prep
 	cfg = cfg.Normalize()
 	server := &Server{
 		cfg:              cfg,
-		engine:           engine,
+		services:         services,
 		screenshots:      screenshots,
 		beforeScreenshot: beforeScreenshot,
 		now:              time.Now,
 		triggerCooldown:  time.Duration(cfg.TriggerCooldownSec) * time.Second,
+		staticFileServer: http.FileServer(http.Dir("frontend/dist")),
 	}
 	server.httpServer = &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", cfg.BindAddress, cfg.Port),
@@ -105,6 +106,9 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/skip-break", s.handleSkipBreak)
 	mux.HandleFunc("/api/pause", s.handlePause)
 	mux.HandleFunc("/api/resume", s.handleResume)
+	if s.staticFileServer != nil {
+		mux.Handle("/", s.staticFileServer)
+	}
 
 	return s.withCORS(s.requireAuth(mux))
 }
