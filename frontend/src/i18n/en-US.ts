@@ -133,5 +133,15 @@ export const enUS = {
   analyticsNoPrevData: 'No previous period data',
   navReminders: 'Reminders',
   navAnalytics: 'Analytics',
-  navSettings: 'Settings'
+  navSettings: 'Settings',
+  navControl: 'Control',
+
+  controlActions: 'Quick Actions',
+  controlForceBreak: 'Force Break Now',
+  controlForceUnlock: 'Force Unlock',
+  controlScreenshot: 'Screenshot',
+  controlScreenshotRefresh: 'Refresh',
+  controlScreenshotError: 'Could not load screenshot.',
+  controlBreakDone: 'Break started.',
+  controlUnlockDone: 'Overlay dismissed.'
 } as const;

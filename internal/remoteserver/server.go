@@ -123,6 +123,8 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/notification/capability", s.handleNotificationCapability)
 	mux.HandleFunc("/api/notification/request", s.handleRequestNotificationPermission)
 	mux.HandleFunc("/api/notification/open-settings", s.handleOpenNotificationSettings)
+	mux.HandleFunc("/api/force-unlock", s.handleForceUnlock)
+	mux.HandleFunc("/api/force-break", s.handleForceBreak)
 	mux.HandleFunc("/api/quit", s.handleQuit)
 	mux.HandleFunc("/api/runtime", s.handleRuntimeState)
 	if s.staticFileServer != nil {

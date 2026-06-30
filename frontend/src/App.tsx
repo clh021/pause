@@ -15,6 +15,7 @@ import { useRuntimePolling } from './hooks/useRuntimePolling';
 import { useSettings } from './hooks/useSettings';
 import { RemindersPage } from './pages/RemindersPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ControlPage } from './pages/ControlPage';
 
 const AnalyticsPage = lazy(async () => import('./pages/AnalyticsPage').then((module) => ({ default: module.AnalyticsPage })));
 const DARK_THEME_VARIANT_STORAGE_KEY = 'pause.darkThemeVariant';
@@ -480,6 +481,17 @@ export function App() {
                   >
                     {t(locale, 'navSettings')}
                   </NavLink>
+                  <NavLink
+                    to="/control"
+                    className={({ isActive }) =>
+                      `rounded-full px-3 py-1 text-xs font-medium no-underline transition-colors ${
+                        isActive
+                          ? 'bg-[linear-gradient(140deg,var(--seg-active),var(--seg-active-strong))] text-white shadow-[var(--shadow-raised)]'
+                          : 'text-[var(--seg-text)] hover:bg-[var(--seg-hover-bg)] hover:text-[var(--text-primary)]'
+                      }`}
+                  >
+                    {t(locale, 'navControl')}
+                  </NavLink>
                 </div>
               </div>
             }
@@ -524,6 +536,16 @@ export function App() {
                 <Suspense fallback={<p className="mt-3 text-sm text-[var(--text-secondary)]">{t(locale, 'analyticsLoading')}</p>}>
                   <AnalyticsPage locale={locale} />
                 </Suspense>
+              }
+            />
+            <Route
+              path="/control"
+              element={
+                <ControlPage
+                  locale={locale}
+                  runtime={runtime}
+                  onRuntimeRefresh={refreshRuntime}
+                />
               }
             />
             <Route

@@ -58,6 +58,7 @@ type Backend = {
   GetPlatformInfo?: () => Promise<PlatformInfo>;
   Quit?: () => Promise<void> | void;
   CloseWindow?: () => Promise<void> | void;
+  StartBreakNow?: () => Promise<RuntimeState>;
 };
 
 function getBackend(): Backend | null {
@@ -260,6 +261,31 @@ export async function closeWindow(): Promise<void> {
     throw new Error('Pause backend bridge unavailable (window.go.app.App.CloseWindow is missing).');
   }
   await backend.CloseWindow();
+}
+
+export async function forceBreak(): Promise<RuntimeState> {
+  if (isWebMode()) {
+    const res = await webFetch('/api/force-break', { method: 'POST' });
+    return res.json();
+  }
+  return requireBackend().StartBreakNow?.() ?? requireBackend().GetRuntimeState();
+}
+
+export async function forceUnlock(): Promise<RuntimeState> {
+  if (isWebMode()) {
+    const res = await webFetch('/api/force-unlock', { method: 'POST' });
+    return res.json();
+  }
+  return requireBackend().SkipCurrentBreak();
+}
+
+export async function takeScreenshot(): Promise<Blob> {
+  const res = await webFetch('/screenshot');
+  return res.blob();
+}
+
+export function getScreenshotUrl(): string {
+  return `${WEB_API_BASE}/screenshot`;
 }
 
 type RuntimeBrowserBridge = {

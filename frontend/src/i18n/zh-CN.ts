@@ -133,5 +133,15 @@ export const zhCN = {
   analyticsNoPrevData: '暂无上一周期数据',
   navReminders: '提醒',
   navAnalytics: '分析',
-  navSettings: '设置'
+  navSettings: '设置',
+  navControl: '控制',
+
+  controlActions: '快捷操作',
+  controlForceBreak: '强制休息',
+  controlForceUnlock: '强制解锁',
+  controlScreenshot: '屏幕截图',
+  controlScreenshotRefresh: '刷新',
+  controlScreenshotError: '截图加载失败',
+  controlBreakDone: '已开始休息。',
+  controlUnlockDone: '已解锁遮罩。'
 } as const;

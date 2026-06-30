@@ -175,6 +175,32 @@ func (s *Server) prepareScreenshot(ctx context.Context) (func(), error) {
 	return s.beforeScreenshot(ctx)
 }
 
+func (s *Server) handleForceUnlock(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	state, err := s.services.Engine.SkipCurrentBreak(s.now(), bootstrap.SkipModeEmergency)
+	if err != nil {
+		writeServerError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, newStatusResponse(state))
+}
+
+func (s *Server) handleForceBreak(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	state, err := s.services.Engine.StartBreakNow(s.now())
+	if err != nil {
+		writeServerError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, newStatusResponse(state))
+}
+
 func (s *Server) handleQuit(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
