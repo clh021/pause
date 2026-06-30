@@ -15,6 +15,25 @@ import type {
   UpdateCheckResult
 } from './types';
 
+const WEB_API_BASE = 'http://localhost:18680';
+
+function isWebMode(): boolean {
+  return !(window as unknown as { go?: { app?: { App?: unknown } } }).go?.app?.App;
+}
+
+async function webFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const url = `${WEB_API_BASE}${path}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(body.error || `HTTP ${res.status}`);
+  }
+  return res;
+}
+
 type Backend = {
   GetSettings: () => Promise<Settings>;
   UpdateSettings: (patch: SettingsPatch) => Promise<Settings>;
@@ -63,78 +82,168 @@ function normalizeReminderConfigs(payload: ReminderConfig[] | null | undefined):
 }
 
 export async function getSettings(): Promise<Settings> {
+  if (isWebMode()) {
+    const res = await webFetch('/api/settings');
+    return res.json();
+  }
   return requireBackend().GetSettings();
 }
 
 export async function updateSettings(patch: SettingsPatch): Promise<Settings> {
+  if (isWebMode()) {
+    const res = await webFetch('/api/settings/update', {
+      method: 'PATCH',
+      body: JSON.stringify(patch)
+    });
+    return res.json();
+  }
   return requireBackend().UpdateSettings(patch);
 }
 
 export async function getReminders(): Promise<ReminderConfig[]> {
+  if (isWebMode()) {
+    const res = await webFetch('/api/reminders');
+    return res.json();
+  }
   return normalizeReminderConfigs(await requireBackend().GetReminders());
 }
 
 export async function createReminder(input: ReminderCreateInput): Promise<ReminderConfig[]> {
+  if (isWebMode()) {
+    const res = await webFetch('/api/reminders/create', {
+      method: 'POST',
+      body: JSON.stringify(input)
+    });
+    return res.json();
+  }
   return normalizeReminderConfigs(await requireBackend().CreateReminder(input));
 }
 
 export async function deleteReminder(reminderID: number): Promise<ReminderConfig[]> {
+  if (isWebMode()) {
+    const res = await webFetch(`/api/reminders/delete/${reminderID}`, {
+      method: 'DELETE'
+    });
+    return res.json();
+  }
   return normalizeReminderConfigs(await requireBackend().DeleteReminder(reminderID));
 }
 
 export async function updateReminder(patch: ReminderPatch): Promise<ReminderConfig[]> {
+  if (isWebMode()) {
+    const res = await webFetch(`/api/reminders/update/${patch.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(patch)
+    });
+    return res.json();
+  }
   return normalizeReminderConfigs(await requireBackend().UpdateReminder(patch));
 }
 
 export async function getLaunchAtLogin(): Promise<boolean> {
+  if (isWebMode()) {
+    const res = await webFetch('/api/settings/launch-at-login');
+    return res.json();
+  }
   return requireBackend().GetLaunchAtLogin();
 }
 
 export async function setLaunchAtLogin(enabled: boolean): Promise<boolean> {
+  if (isWebMode()) {
+    const res = await webFetch('/api/settings/launch-at-login/set', {
+      method: 'POST',
+      body: JSON.stringify({enabled})
+    });
+    return res.json();
+  }
   return requireBackend().SetLaunchAtLogin(enabled);
 }
 
 export async function getRuntimeState(): Promise<RuntimeState> {
+  if (isWebMode()) {
+    const res = await webFetch('/api/runtime');
+    return res.json();
+  }
   return requireBackend().GetRuntimeState();
 }
 
 export async function getAnalyticsWeeklyStats(fromSec: number, toSec: number): Promise<AnalyticsWeeklyStats> {
+  if (isWebMode()) {
+    const res = await webFetch(`/api/analytics/weekly?fromSec=${fromSec}&toSec=${toSec}`);
+    return res.json();
+  }
   return requireBackend().GetAnalyticsWeeklyStats(fromSec, toSec);
 }
 
 export async function getAnalyticsSummary(fromSec: number, toSec: number): Promise<AnalyticsSummary> {
+  if (isWebMode()) {
+    const res = await webFetch(`/api/analytics/summary?fromSec=${fromSec}&toSec=${toSec}`);
+    return res.json();
+  }
   return requireBackend().GetAnalyticsSummary(fromSec, toSec);
 }
 
 export async function getAnalyticsTrendByDay(fromSec: number, toSec: number): Promise<AnalyticsTrend> {
+  if (isWebMode()) {
+    const res = await webFetch(`/api/analytics/trend?fromSec=${fromSec}&toSec=${toSec}`);
+    return res.json();
+  }
   return requireBackend().GetAnalyticsTrendByDay(fromSec, toSec);
 }
 
 export async function getAnalyticsBreakTypeDistribution(fromSec: number, toSec: number): Promise<AnalyticsBreakTypeDistribution> {
+  if (isWebMode()) {
+    const res = await webFetch(`/api/analytics/distribution?fromSec=${fromSec}&toSec=${toSec}`);
+    return res.json();
+  }
   return requireBackend().GetAnalyticsBreakTypeDistribution(fromSec, toSec);
 }
 
 export async function skipCurrentBreak(): Promise<RuntimeState> {
+  if (isWebMode()) {
+    const res = await webFetch('/api/skip-break', { method: 'POST' });
+    return res.json();
+  }
   return requireBackend().SkipCurrentBreak();
 }
 
 export async function postponeCurrentBreak(): Promise<RuntimeState> {
+  if (isWebMode()) {
+    const res = await webFetch('/api/skip-break', { method: 'POST' });
+    return res.json();
+  }
   return requireBackend().PostponeCurrentBreak();
 }
 
 export async function getNotificationCapability(): Promise<NotificationCapability> {
+  if (isWebMode()) {
+    const res = await webFetch('/api/notification/capability');
+    return res.json();
+  }
   return requireBackend().GetNotificationCapability();
 }
 
 export async function requestNotificationPermission(): Promise<NotificationCapability> {
+  if (isWebMode()) {
+    const res = await webFetch('/api/notification/request', { method: 'POST' });
+    return res.json();
+  }
   return requireBackend().RequestNotificationPermission();
 }
 
 export async function openNotificationSettings(): Promise<void> {
+  if (isWebMode()) {
+    await webFetch('/api/notification/open-settings', { method: 'POST' });
+    return;
+  }
   return requireBackend().OpenNotificationSettings();
 }
 
 export async function quitApp(): Promise<void> {
+  if (isWebMode()) {
+    await webFetch('/api/quit', { method: 'POST' });
+    return;
+  }
   const backend = requireBackend();
   if (!backend.Quit) {
     throw new Error('Pause backend bridge unavailable (window.go.app.App.Quit is missing).');
@@ -143,6 +252,9 @@ export async function quitApp(): Promise<void> {
 }
 
 export async function closeWindow(): Promise<void> {
+  if (isWebMode()) {
+    return;
+  }
   const backend = requireBackend();
   if (!backend.CloseWindow) {
     throw new Error('Pause backend bridge unavailable (window.go.app.App.CloseWindow is missing).');
@@ -226,6 +338,9 @@ export const ERR_UPDATE_FETCH_FAILED = 'ERR_UPDATE_FETCH_FAILED';
 export const ERR_UPDATE_DOWNLOAD_URL_MISSING = 'ERR_UPDATE_DOWNLOAD_URL_MISSING';
 
 async function getPlatformInfo(): Promise<PlatformInfo> {
+  if (isWebMode()) {
+    return { os: 'web', arch: 'web' };
+  }
   const backend = requireBackend();
   if (!backend.GetPlatformInfo) {
     return { os: 'unknown', arch: 'unknown' };
@@ -288,6 +403,10 @@ export function openExternalURL(url: string): void {
   if (target === '') {
     throw new Error(ERR_UPDATE_DOWNLOAD_URL_MISSING);
   }
+  if (isWebMode()) {
+    window.open(target);
+    return;
+  }
   requireBrowserBridge().BrowserOpenURL(target);
 }
 
@@ -304,6 +423,16 @@ function requireRuntimeBridge(): RuntimeBridge {
 }
 
 export function onRuntimeTick(callback: (state: RuntimeState) => void): () => void {
+  if (isWebMode()) {
+    const interval = setInterval(async () => {
+      try {
+        const res = await webFetch('/api/runtime');
+        const state = (await res.json()) as RuntimeState;
+        callback(state);
+      } catch { /* ignore polling errors */ }
+    }, 1000);
+    return () => clearInterval(interval);
+  }
   const bridge = requireRuntimeBridge();
   return bridge.EventsOn('runtime:tick', (payload) => {
     const normalized = Array.isArray(payload) ? payload[0] : payload;
