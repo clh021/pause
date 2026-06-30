@@ -1,22 +1,17 @@
-.DS_Store
-pause
 
-frontend/node_modules/
+.agent/
+.agents/
+build/
+CLAUDE.md
+.codex/
+.DS_Store
 frontend/dist/
+frontend/node_modules/
 frontend/package.json.md5
 frontend/wailsjs/
-
+internal/remoteserver/static/
 *.log
-*.tmp
-
-.codex/
-
-.agents/
-.agent/
-
 # Packaging/build outputs
-build/
-
-
+pause
 skills-lock.json
-CLAUDE.md
+*.tmp

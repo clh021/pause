@@ -179,10 +179,17 @@ fi
 
 mkdir -p "${ROOT_DIR}/build/bin"
 mkdir -p "${WINDOWS_OUTPUT_DIR}"
-mkdir -p "$(dirname "${APP_ICON_TARGET}")"
-mkdir -p "$(dirname "${WINDOWS_ICON_TARGET}")"
+mkdir -p "$(dirname "${APP_ICON_TARGET}"")"
+mkdir -p "$(dirname "${WINDOWS_ICON_TARGET}"")"
 cp "${APP_ICON_SOURCE}" "${APP_ICON_TARGET}"
 cp "${WINDOWS_ICON_SOURCE}" "${WINDOWS_ICON_TARGET}"
+
+# Copy frontend dist into embed directory so the binary includes the web UI.
+if [[ -d "${ROOT_DIR}/frontend/dist" ]] && [[ -f "${ROOT_DIR}/frontend/dist/index.html" ]]; then
+  mkdir -p "${ROOT_DIR}/internal/remoteserver/static"
+  cp -r "${ROOT_DIR}/frontend/dist/"* "${ROOT_DIR}/internal/remoteserver/static/"
+  echo "frontend dist copied into embed directory"
+fi
 
 if [[ -f "${WINDOWS_NSIS_TEMPLATE}" ]]; then
   mkdir -p "${ROOT_DIR}/build/windows/installer"

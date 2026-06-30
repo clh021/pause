@@ -46,7 +46,7 @@ func NewServer(cfg Config, services Services, beforeScreenshot PrepareScreenshot
 		beforeScreenshot: beforeScreenshot,
 		now:              time.Now,
 		triggerCooldown:  time.Duration(cfg.TriggerCooldownSec) * time.Second,
-		staticFileServer: http.FileServer(http.Dir("frontend/dist")),
+		staticFileServer: staticFileHandler(),
 	}
 	server.httpServer = &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", cfg.BindAddress, cfg.Port),
