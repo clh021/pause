@@ -104,18 +104,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Download macOS arm64 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: pause-macos-arm64
-          path: build/bin/macos-arm64
-
-      - name: Download macOS x64 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: pause-macos-x64
-          path: build/bin/macos-x64
-
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
@@ -148,18 +136,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Download macOS arm64 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: pause-macos-arm64
-          path: build/bin/macos-arm64
-
-      - name: Download macOS x64 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: pause-macos-x64
-          path: build/bin/macos-x64
 
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
@@ -195,8 +171,6 @@ jobs:
             const tag = process.env.TAG_NAME;
             const version = process.env.VERSION;
             const keep = new Set([
-              `Pause-v${version}-macos-arm64.dmg`,
-              `Pause-v${version}-macos-x64.dmg`,
               `Pause-v${version}-windows-x64-setup.exe`,
               'release-manifest.txt',
               'SHA256SUMS',
@@ -238,8 +212,6 @@ jobs:
           generate_release_notes: true
           body_path: release.md
           files: |
-            build/bin/macos-arm64/Pause-v${{ needs.validate.outputs.version }}-macos-arm64.dmg
-            build/bin/macos-x64/Pause-v${{ needs.validate.outputs.version }}-macos-x64.dmg
             build/bin/windows-x64/Pause-v${{ needs.validate.outputs.version }}-windows-x64-setup.exe
             build/bin/release/release-manifest.txt
             build/bin/release/SHA256SUMS

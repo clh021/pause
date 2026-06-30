@@ -1,6 +1,6 @@
 # Pause
 
-Pause 是一个跨平台休息提醒应用（macOS / Windows，Linux 计划中）。
+Pause 是一个跨平台休息提醒应用（Windows / Linux 计划中）。
 
 ## 功能
 
@@ -10,7 +10,7 @@ Pause 是一个跨平台休息提醒应用（macOS / Windows，Linux 计划中�
 - 声音提示
 - 开机自启动
 - 中文 / English 双语
-- macOS / Windows 跨平台（Linux 计划中）
+- Windows / Linux 计划中
 
 ## 应用预览
 
@@ -26,7 +26,6 @@ https://github.com/user-attachments/assets/3ac20ceb-b286-4bf2-ad21-6a534e1dcf9a
 
 | 平台 | 文件 |
 |---|---|
-| macOS | `.dmg` |
 | Windows | `.exe` 安装器 |
 | Linux | 计划中 |
 
@@ -109,9 +108,6 @@ go test -tags wails ./...
 完整规范见：[docs/packaging.md](./docs/packaging.md)
 
 ```bash
-# macOS DMG
-./scripts/build-dmg.sh
-
 # Windows 安装器
 ./scripts/build-windows-installer.sh
 
@@ -138,11 +134,6 @@ VITE_UPDATES_URL=https://dnsayhey.github.io/pause/updates/stable.json
 
 ## 清理脚本
 
-```bash
-# macOS
-./scripts/cleanup/macos/cleanup-pause.sh
-```
-
 ```powershell
 # Windows
 powershell -ExecutionPolicy Bypass -File .\scripts\cleanup\windows\cleanup-pause.ps1 -DryRun
@@ -151,7 +142,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\cleanup\windows\cleanup-pause
 
 ## 平台说明
 
-- macOS / Windows：主流程可用（提醒、休息会话、通知、开机启动、桌面壳交互）。
+- Windows：主流程可用（提醒、休息会话、通知、开机启动、桌面壳交互）。
 - Linux：适配层已有骨架实现，完整支持计划中。
 
 ## License

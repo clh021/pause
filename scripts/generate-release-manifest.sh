@@ -25,7 +25,7 @@ Options:
   -h, --help                Show this help
 
 Scanned artifact extensions:
-  .dmg, .exe, .msi, .zip, .blockmap, .msix, .appx
+  .exe, .msi, .zip, .blockmap, .msix, .appx
 EOF
 }
 
@@ -143,7 +143,6 @@ resolve_repository_slug() {
 infer_asset_os() {
   local name="$1"
   case "${name}" in
-    *-macos-*) echo "macos" ;;
     *-windows-*) echo "windows" ;;
     *-linux-*) echo "linux" ;;
     *) echo "unknown" ;;
@@ -164,7 +163,6 @@ infer_asset_kind() {
   local name="$1"
   case "${name}" in
     *-setup.exe) echo "installer" ;;
-    *.dmg) echo "disk-image" ;;
     *.msi) echo "installer" ;;
     *.msix|*.appx) echo "package" ;;
     *.zip) echo "archive" ;;
@@ -219,7 +217,7 @@ while IFS= read -r file; do
   ARTIFACTS+=("${file}")
 done < <(
   find "${ARTIFACTS_ROOT}" -type f \
-    \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.zip" -o -name "*.blockmap" -o -name "*.msix" -o -name "*.appx" \) \
+    \( -name "*.exe" -o -name "*.msi" -o -name "*.zip" -o -name "*.blockmap" -o -name "*.msix" -o -name "*.appx" \) \
     | sort
 )
 

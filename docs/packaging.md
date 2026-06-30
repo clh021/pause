@@ -1,19 +1,18 @@
 # Pause 打包、发版与更新源
 
-最后更新：2026-04-02
+最后更新：2026-06-18
 
 本文档定义 Pause 当前桌面端的打包规范、GitHub Release 流程以及稳定更新源（stable feed）约定。
 
 ## 目标
 
-- 统一 macOS 与 Windows 的打包入口和参数语义。
+- 统一 Windows 的打包入口和参数语义。
 - 固化发布物清单（产物 + 校验和 + 元数据）。
 - 保证构建过程可追溯、可复现、可排障。
 - 保证客户端“检查更新”只依赖一个稳定地址。
 
 ## 脚本入口
 
-- macOS DMG：`scripts/build-dmg.sh`
 - Windows 安装器：`scripts/build-windows-installer.sh`
 - 发布清单：`scripts/generate-release-manifest.sh`
 - 版本更新：`scripts/bump-version.sh`
@@ -22,7 +21,6 @@
 
 ## 清理脚本目录规范
 
-- macOS：`scripts/cleanup/macos/cleanup-pause.sh`
 - Windows：`scripts/cleanup/windows/cleanup-pause.ps1`
 
 ## 版本规范
@@ -38,48 +36,10 @@
 ## 产物目录规范
 
 - 原始构建产物根目录：`build/bin`
-- macOS 产物子目录（默认）：`build/bin/macos-arm64` 与 `build/bin/macos-x64`
 - Windows 产物子目录（默认）：`build/bin/windows-x64` 或 `build/bin/windows-arm64`
 - 发布清单目录（默认）：`build/bin/release`
 
 建议在正式发版时使用独立目录（例如 `build/bin/release/<version>`）存放归档结果，避免与临时构建文件混放。
-
-## macOS 打包规范
-
-命令：
-
-```bash
-./scripts/build-dmg.sh
-```
-
-常用参数：
-
-- `--platform <split|darwin/arm64|darwin/amd64|darwin/universal>`：构建目标（默认 `split`，即 arm64+x64 分开构建）
-- `--version <version>`：覆盖 `CFBundleShortVersionString/CFBundleVersion`
-- `--bundle-id <bundle_id>`：覆盖默认 Bundle ID（默认来自 `internal/meta/bundle_id.txt`）
-- `--codesign <identity>`：签名身份（`-` 表示 ad-hoc）
-- `--output <path>`：自定义 DMG 输出路径（仅单平台模式）
-- `--output-dir <path>`：自定义 DMG 输出目录（单平台）或输出根目录（split 模式）
-- `--clean|--no-clean`：是否执行 Wails `-clean`
-
-默认行为：
-
-- 分别产出：
-  - `build/bin/macos-arm64/Pause-v<version>-macos-arm64.dmg`
-  - `build/bin/macos-x64/Pause-v<version>-macos-x64.dmg`
-- 图标来源：`assets/branding/app-icon-1024.png`
-- DMG Finder 布局模板：`assets/dmg/dmg-layout.dsstore`（默认把 `Pause.app` 与 `Applications` 固定为左右布局）
-- 会自动将登录项 helper 嵌入到 `.app` 并签名。
-- 优先使用本机 `wails`，缺失时回退到 `go run github.com/wailsapp/wails/v2/cmd/wails@v2.10.2`。
-
-示例：
-
-- 分开构建（默认）：
-  - `./scripts/build-dmg.sh`
-- 只构建 arm64：
-  - `./scripts/build-dmg.sh --platform darwin/arm64`
-- 只构建 x64：
-  - `./scripts/build-dmg.sh --platform darwin/amd64`
 
 ## Windows 打包规范
 
@@ -133,7 +93,6 @@
 
 脚本会扫描以下后缀文件：
 
-- `.dmg`
 - `.exe`
 - `.msi`
 - `.zip`
@@ -175,7 +134,7 @@ Pause 当前只维护一个渠道：`stable`。
 - 设置页可手动再次检查
 - 如果发现更新，会根据当前平台信息匹配最合适的安装包下载地址
 
-平台信息不再由前端 `userAgent` 猜测，而是由 Wails 后端提供 `GetPlatformInfo()`，用于提高 macOS / Windows 包匹配准确性。
+平台信息不再由前端 `userAgent` 猜测，而是由 Wails 后端提供 `GetPlatformInfo()`，用于提高 Windows 包匹配准确性。
 
 当前 GitHub Actions 约定的 Pages 地址格式：
 
@@ -186,8 +145,7 @@ Pause 当前只维护一个渠道：`stable`。
 ## 推荐发布流程
 
 1. 执行 `./scripts/check-version-sync.sh`，确保版本元信息一致。
-2. 执行 macOS 打包（按需传入签名与版本参数）。
-3. 执行 Windows 打包（按目标架构分别构建）。
+2. 执行 Windows 打包（按目标架构分别构建）。
 4. 执行 `generate-release-manifest.sh`，生成统一清单与校验文件。
    当前推荐固定使用 `stable` 渠道标签，与自动更新地址保持一致。
 5. 人工验收并归档发布目录。
@@ -199,8 +157,6 @@ Pause 当前只维护一个渠道：`stable`。
   - `push` tag `v*`：自动构建并发布 GitHub Release（附带产物与清单）
   - `workflow_dispatch`：可在 GitHub Actions 页面手动触发构建
 - 产出内容：
-  - `pause-macos-arm64`：macOS Apple Silicon DMG
-  - `pause-macos-x64`：macOS Intel x64 DMG
   - `pause-windows-x64`：Windows 安装包与校验文件
   - `pause-release-manifest`：`release-manifest.txt` + `SHA256SUMS` + `updates.json`
 - Pages：
@@ -228,8 +184,6 @@ Pause 当前只维护一个渠道：`stable`。
 
 ## 验收清单
 
-- macOS：DMG 可挂载，`Pause.app` 可拖拽安装，首次启动正常。
-- macOS：登录项可启停，Bundle ID 与 helper bundle id 正确。
 - Windows：安装、启动、清理流程正常，桌面/开始菜单快捷方式正确。
 - Windows：WebView2 策略与目标环境一致（`download`/`browser`/`embed`）。
 - 校验：`SHA256SUMS` 与实际上传文件一致。
