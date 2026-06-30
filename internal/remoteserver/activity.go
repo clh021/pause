@@ -176,7 +176,7 @@ func (r *ActivityRecorder) GetActivity(ctx context.Context, fromT, toT int64) (A
 func (r *ActivityRecorder) listShots(fromT, toT int64) []ShotInfo {
 	entries, err := os.ReadDir(r.screenshotDir)
 	if err != nil {
-		return nil
+		return []ShotInfo{}
 	}
 	var shots []ShotInfo
 	for _, e := range entries {
@@ -198,6 +198,9 @@ func (r *ActivityRecorder) listShots(fromT, toT int64) []ShotInfo {
 	sort.Slice(shots, func(i, j int) bool {
 		return shots[i].Timestamp < shots[j].Timestamp
 	})
+	if shots == nil {
+		return []ShotInfo{}
+	}
 	return shots
 }
 
@@ -342,7 +345,7 @@ func readActivityFile(path string) ([]ActivityRecord, error) {
 func listShotsInDir(dir string, fromT, toT int64) []ShotInfo {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil
+		return []ShotInfo{}
 	}
 	var shots []ShotInfo
 	for _, e := range entries {
@@ -365,6 +368,9 @@ func listShotsInDir(dir string, fromT, toT int64) []ShotInfo {
 	sort.Slice(shots, func(i, j int) bool {
 		return shots[i].Timestamp < shots[j].Timestamp
 	})
+	if shots == nil {
+		return []ShotInfo{}
+	}
 	return shots
 }
 

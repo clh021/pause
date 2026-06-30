@@ -148,7 +148,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
 
   // ---- Build mini timeline ----
   const activityBars: { active: boolean; ts: number }[] = [];
-  if (activity && activity.ticks.length > 0) {
+  if (activity && activity.ticks && activity.ticks.length > 0) {
     const step = Math.max(1, Math.floor(activity.ticks.length / BAR_COUNT));
     for (let i = 0; i < activity.ticks.length && activityBars.length < BAR_COUNT; i += step) {
       activityBars.push({ active: activity.ticks[i].a, ts: activity.ticks[i].t });

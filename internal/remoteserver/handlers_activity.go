@@ -30,7 +30,10 @@ func (s *Server) handleGetActivity(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if s.activity == nil {
-		writeJSON(w, http.StatusOK, ActivitySummary{})
+		writeJSON(w, http.StatusOK, ActivitySummary{
+			Ticks: []ActivityRecord{},
+			Shots: []ShotInfo{},
+		})
 		return
 	}
 
