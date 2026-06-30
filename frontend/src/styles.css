@@ -50,6 +50,9 @@
   --accent-strong: #255f4f;
   --accent-soft: rgba(47, 122, 102, 0.12);
   --accent-ring: rgba(47, 122, 102, 0.28);
+  --accent-bg: var(--accent);
+  --card-bg: var(--surface-bg);
+  --card-border: var(--surface-border);
   --positive-text: #2f7a66;
   --negative-text: #b44d3b;
   --error-bg: #fff0f0;

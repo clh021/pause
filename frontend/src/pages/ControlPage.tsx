@@ -17,13 +17,13 @@ type ControlPageProps = {
   onRuntimeRefresh: () => void;
 };
 
-type TimeRange = '1h' | '6h' | '24h';
-const RANGE_SEC: Record<TimeRange, number> = { '1h': 3600, '6h': 21600, '24h': 86400 };
+type TimeRange = '2h' | '12h' | '48h';
+const RANGE_SEC: Record<TimeRange, number> = { '2h': 7200, '12h': 43200, '48h': 172800 };
 const BAR_COUNT = 120; // show 120 bars in the mini-chart
 
 export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPageProps) {
   const [activity, setActivity] = useState<ActivitySummary | null>(null);
-  const [selectedRange, setSelectedRange] = useState<TimeRange>('24h');
+  const [selectedRange, setSelectedRange] = useState<TimeRange>('12h');
   const [autoShot, setAutoShot] = useState(false);
   const [selectedShot, setSelectedShot] = useState<ShotInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,6 +144,13 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
     setSelectedShot(shot);
   }, []);
 
+  // Track broken shot images
+  const [brokenShots, setBrokenShots] = useState<Set<string>>(new Set());
+
+  const markShotBroken = useCallback((name: string) => {
+    setBrokenShots((prev) => new Set(prev).add(name));
+  }, []);
+
   const isResting = runtime?.currentSession?.status === 'resting';
 
   // ---- Build mini timeline ----
@@ -256,7 +263,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
             )}
           </h2>
           <div className="flex gap-1">
-            {(['1h', '6h', '24h'] as TimeRange[]).map((r) => (
+            {(['2h', '12h', '48h'] as TimeRange[]).map((r) => (
               <button
                 key={r}
                 type="button"
@@ -296,7 +303,10 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
             {/* Screenshot thumbnails on timeline */}
             {activity && activity.shots && activity.shots.length > 0 && (
               <div className="mt-3 space-y-2">
-                <p className="text-xs font-medium text-[var(--text-secondary)]">{t(locale, 'controlShots')}</p>
+                <p className="text-xs font-medium text-[var(--text-secondary)]">
+                  {t(locale, 'controlShots')}
+                  <span className="ml-1 text-[var(--text-tertiary)]">({activity.shots.length})</span>
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {activity.shots.map((shot) => (
                     <button
@@ -306,13 +316,14 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                         selectedShot?.name === shot.name
                           ? 'border-[var(--accent-bg)] ring-2 ring-[var(--accent-bg)]'
                           : 'border-[var(--card-border)]'
-                      }`}
+                      } ${brokenShots.has(shot.name) ? 'hidden' : ''}`}
                       onClick={() => handleShotClick(shot)}
                     >
                       <img
                         src={`${getShotUrl(shot.name)}?t=${shot.t}`}
                         alt={shot.name}
                         className="h-16 w-24 object-cover transition-opacity group-hover:opacity-80"
+                        onError={() => markShotBroken(shot.name)}
                       />
                       <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-1 py-0.5 text-[10px] text-white">
                         {new Date(shot.t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -345,7 +356,11 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
             src={`${getShotUrl(selectedShot.name)}?t=${selectedShot.t}`}
             alt={selectedShot.name}
             className="max-h-[70vh] w-full rounded-lg object-contain"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+            }}
           />
+          <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">{selectedShot.name}</p>
         </div>
       )}
     </section>
