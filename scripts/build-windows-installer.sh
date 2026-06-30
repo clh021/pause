@@ -179,8 +179,8 @@ fi
 
 mkdir -p "${ROOT_DIR}/build/bin"
 mkdir -p "${WINDOWS_OUTPUT_DIR}"
-mkdir -p "$(dirname "${APP_ICON_TARGET}"")"
-mkdir -p "$(dirname "${WINDOWS_ICON_TARGET}"")"
+mkdir -p "$(dirname "${APP_ICON_TARGET}")"
+mkdir -p "$(dirname "${WINDOWS_ICON_TARGET}")"
 cp "${APP_ICON_SOURCE}" "${APP_ICON_TARGET}"
 cp "${WINDOWS_ICON_SOURCE}" "${WINDOWS_ICON_TARGET}"
 
