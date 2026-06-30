@@ -175,6 +175,22 @@ func (s *Server) prepareScreenshot(ctx context.Context) (func(), error) {
 	return s.beforeScreenshot(ctx)
 }
 
+func (s *Server) handleQuit(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) handleRuntimeState(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	writeJSON(w, http.StatusOK, newStatusResponse(s.services.Engine.GetRuntimeState(s.now())))
+}
+
 func decodeJSONBody(r *http.Request, dest any) error {
 	if r.Body == nil {
 		return nil

@@ -106,6 +106,25 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/skip-break", s.handleSkipBreak)
 	mux.HandleFunc("/api/pause", s.handlePause)
 	mux.HandleFunc("/api/resume", s.handleResume)
+	mux.HandleFunc("/api/reminders", s.handleListReminders)
+	mux.HandleFunc("/api/reminders/create", s.handleCreateReminder)
+	mux.HandleFunc("/api/reminders/update/{id}", s.handleUpdateReminder)
+	mux.HandleFunc("/api/reminders/delete/{id}", s.handleDeleteReminder)
+	mux.HandleFunc("/api/reminders/pause/{id}", s.handlePauseReminder)
+	mux.HandleFunc("/api/reminders/resume/{id}", s.handleResumeReminder)
+	mux.HandleFunc("/api/settings", s.handleGetSettings)
+	mux.HandleFunc("/api/settings/update", s.handleUpdateSettings)
+	mux.HandleFunc("/api/settings/launch-at-login", s.handleGetLaunchAtLogin)
+	mux.HandleFunc("/api/settings/launch-at-login/set", s.handleSetLaunchAtLogin)
+	mux.HandleFunc("/api/analytics/weekly", s.handleWeeklyStats)
+	mux.HandleFunc("/api/analytics/summary", s.handleAnalyticsSummary)
+	mux.HandleFunc("/api/analytics/trend", s.handleAnalyticsTrend)
+	mux.HandleFunc("/api/analytics/distribution", s.handleBreakTypeDistribution)
+	mux.HandleFunc("/api/notification/capability", s.handleNotificationCapability)
+	mux.HandleFunc("/api/notification/request", s.handleRequestNotificationPermission)
+	mux.HandleFunc("/api/notification/open-settings", s.handleOpenNotificationSettings)
+	mux.HandleFunc("/api/quit", s.handleQuit)
+	mux.HandleFunc("/api/runtime", s.handleRuntimeState)
 	if s.staticFileServer != nil {
 		mux.Handle("/", s.staticFileServer)
 	}
@@ -117,7 +136,7 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
