@@ -11,3 +11,6 @@ func newDesktopController() desktopController {
 }
 
 func (noopDesktopController) OnStartup(context.Context, *App) {}
+func (noopDesktopController) PrepareForScreenshot(context.Context) (func(), error) {
+	return func() {}, nil
+}

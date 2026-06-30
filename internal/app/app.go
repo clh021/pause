@@ -2,11 +2,13 @@ package app
 
 import (
 	"context"
+	"time"
 
 	"pause/internal/backend/bootstrap"
 	"pause/internal/logx"
 	"pause/internal/meta"
 	"pause/internal/paths"
+	"pause/internal/remoteserver"
 )
 
 func NewApp(configPath string) (*App, error) {
@@ -65,6 +67,9 @@ func (a *App) Startup(ctx context.Context) {
 	if a.desktop != nil {
 		a.desktop.OnStartup(ctx, a)
 	}
+	if err := a.startRemoteServer(ctx); err != nil {
+		logx.Warnf("app.startup remote_server_err=%v", err)
+	}
 	logx.Infof("app.startup completed")
 }
 
@@ -84,9 +89,35 @@ func (a *App) Shutdown(_ context.Context) {
 		return
 	}
 	logx.Infof("app.shutdown started")
+	if a.remoteServer != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := a.remoteServer.Shutdown(shutdownCtx); err != nil {
+			logx.Warnf("app.shutdown remote_server_close_err=%v", err)
+		}
+		cancel()
+	}
 	if err := a.runtime.Close(); err != nil {
 		logx.Warnf("app.shutdown runtime_close_err=%v", err)
 		return
 	}
 	logx.Infof("app.shutdown completed")
+}
+
+func (a *App) startRemoteServer(ctx context.Context) error {
+	cfg, err := remoteserver.LoadConfig()
+	if err != nil {
+		return err
+	}
+	if !cfg.Enabled {
+		return nil
+	}
+	server, err := remoteserver.NewServer(cfg, a.engine, a.desktop.PrepareForScreenshot)
+	if err != nil {
+		return err
+	}
+	if err := server.Start(ctx); err != nil {
+		return err
+	}
+	a.remoteServer = server
+	return nil
 }

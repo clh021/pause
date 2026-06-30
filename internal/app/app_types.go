@@ -21,6 +21,7 @@ type App struct {
 	notifier               ports.Notifier
 	notificationCapability ports.NotificationCapabilityProvider
 	desktop                desktopController
+	remoteServer           remoteServer
 	quitRequested          atomic.Bool
 }
 
@@ -61,4 +62,9 @@ type settingsService interface {
 
 type desktopController interface {
 	OnStartup(ctx context.Context, app *App)
+	PrepareForScreenshot(ctx context.Context) (func(), error)
+}
+
+type remoteServer interface {
+	Shutdown(ctx context.Context) error
 }

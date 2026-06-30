@@ -22,6 +22,17 @@ func overlaySkipMode(settings settings.Settings) skipMode {
 }
 
 func (c *wailsDesktopController) syncOverlay(ctx context.Context, state state.RuntimeState, settings settings.Settings) {
+	if until := c.screenshotSuspendUntil.Load(); until > 0 && time.Now().UnixNano() < until {
+		c.overlay.Hide()
+		c.lastOverlayActive = false
+		c.lastOverlaySkip = false
+		c.lastOverlayPostpone = false
+		c.lastOverlayLang = c.lastLanguage
+		c.lastOverlayText = ""
+		c.lastOverlayTheme = resolveEffectiveTheme(settings.UI.Theme)
+		return
+	}
+
 	overlayActive := state.CurrentSession != nil && state.CurrentSession.Status == "resting"
 	overlaySkipAllowed := overlayActive && state.OverlaySkipAllowed && state.CurrentSession != nil && state.CurrentSession.CanSkip
 	overlayPostponeAllowed := overlayActive && state.CurrentSession != nil && state.CurrentSession.CanPostpone

@@ -35,6 +35,7 @@ type wailsDesktopController struct {
 	hasStatusBarSnapshot    bool
 	statusBarSyncMu         sync.Mutex
 	statusBarDetailsVisible atomic.Bool
+	screenshotSuspendUntil  atomic.Int64
 	statusBar               desktop.StatusBarController
 	overlay                 desktop.BreakOverlayController
 	startOnce               sync.Once
@@ -130,4 +131,12 @@ func (c *wailsDesktopController) logErr(_ context.Context, err error) {
 		return
 	}
 	logx.Errorf("desktop.error err=%v", err)
+}
+
+func (c *wailsDesktopController) PrepareForScreenshot(_ context.Context) (func(), error) {
+	c.screenshotSuspendUntil.Store(time.Now().Add(2 * time.Second).UnixNano())
+	c.overlay.Hide()
+	return func() {
+		c.screenshotSuspendUntil.Store(0)
+	}, nil
 }
