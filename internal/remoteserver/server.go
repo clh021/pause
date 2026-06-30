@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -26,6 +28,8 @@ type Server struct {
 	triggerMu        sync.Mutex
 	lastTriggerAt    time.Time
 	staticFileServer http.Handler
+
+	activity *ActivityRecorder
 }
 
 // NewServer constructs the remote HTTP server.
@@ -34,15 +38,16 @@ func NewServer(cfg Config, services Services, beforeScreenshot PrepareScreenshot
 		return nil, errors.New("runtime engine is required")
 	}
 	capturer := NewScreenshotCapturer()
-	screenshots, err := NewScreenshotService(capturer)
+	ss, err := NewScreenshotService(capturer)
 	if err != nil {
 		return nil, err
 	}
 	cfg = cfg.Normalize()
+
 	server := &Server{
 		cfg:              cfg,
 		services:         services,
-		screenshots:      screenshots,
+		screenshots:      ss,
 		beforeScreenshot: beforeScreenshot,
 		now:              time.Now,
 		triggerCooldown:  time.Duration(cfg.TriggerCooldownSec) * time.Second,
@@ -61,9 +66,20 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
+	// Start the activity recorder (polls every 10s).
+	if rec, err := NewActivityRecorder(s.services.Engine, s.screenshots, true); err == nil {
+		s.activity = rec
+		go s.activityPollLoop(ctx)
+	} else {
+		logx.Warnf("remote_server.activity_start_err err=%v", err)
+	}
+
 	errCh := make(chan error, 1)
 	go func() {
 		<-ctx.Done()
+		if s.activity != nil {
+			s.activity.Close()
+		}
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := s.Shutdown(shutdownCtx); err != nil {
@@ -89,6 +105,19 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 }
 
+func (s *Server) activityPollLoop(ctx context.Context) {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.activity.Tick(ctx)
+		}
+	}
+}
+
 // Shutdown gracefully stops the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
 	if s == nil || s.httpServer == nil {
@@ -101,6 +130,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 func (s *Server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/screenshot", s.handleScreenshot)
+	mux.HandleFunc("/shots/{name}", s.handleServeShot)
 	mux.HandleFunc("/api/status", s.handleStatus)
 	mux.HandleFunc("/api/trigger-break", s.handleTriggerBreak)
 	mux.HandleFunc("/api/skip-break", s.handleSkipBreak)
@@ -116,6 +146,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/settings/update", s.handleUpdateSettings)
 	mux.HandleFunc("/api/settings/launch-at-login", s.handleGetLaunchAtLogin)
 	mux.HandleFunc("/api/settings/launch-at-login/set", s.handleSetLaunchAtLogin)
+	mux.HandleFunc("/api/settings/auto-screenshot", s.handleAutoScreenshotSetting)
 	mux.HandleFunc("/api/analytics/weekly", s.handleWeeklyStats)
 	mux.HandleFunc("/api/analytics/summary", s.handleAnalyticsSummary)
 	mux.HandleFunc("/api/analytics/trend", s.handleAnalyticsTrend)
@@ -127,6 +158,8 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/force-break", s.handleForceBreak)
 	mux.HandleFunc("/api/quit", s.handleQuit)
 	mux.HandleFunc("/api/runtime", s.handleRuntimeState)
+	mux.HandleFunc("/api/activity", s.handleGetActivity)
+	mux.HandleFunc("/api/screenshots", s.handleScreenshotList)
 	if s.staticFileServer != nil {
 		mux.Handle("/", s.staticFileServer)
 	}
@@ -145,4 +178,12 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (s *Server) screenshotDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".pause", "screenshots")
 }

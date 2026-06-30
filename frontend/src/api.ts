@@ -12,7 +12,8 @@ import type {
   SettingsPatch,
   PlatformInfo,
   UpdateAsset,
-  UpdateCheckResult
+  UpdateCheckResult,
+  ActivitySummary
 } from './types';
 
 const WEB_API_BASE = 'http://localhost:18680';
@@ -286,6 +287,34 @@ export async function takeScreenshot(): Promise<Blob> {
 
 export function getScreenshotUrl(): string {
   return `${WEB_API_BASE}/screenshot`;
+}
+
+export async function getActivity(fromSec?: number, toSec?: number): Promise<ActivitySummary> {
+  const params = new URLSearchParams();
+  if (fromSec !== undefined) params.set('from', String(fromSec));
+  if (toSec !== undefined) params.set('to', String(toSec));
+  const qs = params.toString();
+  const res = await webFetch(`/api/activity${qs ? '?' + qs : ''}`);
+  return res.json();
+}
+
+export async function getAutoScreenshot(): Promise<boolean> {
+  const res = await webFetch('/api/settings/auto-screenshot');
+  const data = (await res.json()) as { enabled: boolean };
+  return data.enabled;
+}
+
+export async function setAutoScreenshot(enabled: boolean): Promise<boolean> {
+  const res = await webFetch('/api/settings/auto-screenshot', {
+    method: 'POST',
+    body: JSON.stringify({ enabled })
+  });
+  const data = (await res.json()) as { enabled: boolean };
+  return data.enabled;
+}
+
+export function getShotUrl(name: string): string {
+  return `${WEB_API_BASE}/shots/${encodeURIComponent(name)}`;
 }
 
 type RuntimeBrowserBridge = {

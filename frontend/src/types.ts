@@ -190,3 +190,23 @@ export type AnalyticsBreakTypeDistribution = {
   totalTriggered: number;
   items: AnalyticsBreakTypeDistributionItem[];
 };
+
+export type ActivityRecord = {
+  t: number;
+  a: boolean;
+  i: number;
+};
+
+export type ShotInfo = {
+  t: number;
+  path: string;
+  name: string;
+};
+
+export type ActivitySummary = {
+  totalTicks: number;
+  activeSec: number;
+  idleSec: number;
+  ticks: ActivityRecord[];
+  shots: ShotInfo[];
+};
