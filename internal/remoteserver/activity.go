@@ -61,16 +61,12 @@ type ActivityRecorder struct {
 
 // NewActivityRecorder creates the recorder and starts the background flush loop.
 func NewActivityRecorder(engine bootstrap.RuntimeEngine, screenshotSvc *ScreenshotService, captureOnActivity bool) (*ActivityRecorder, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("activity: cannot resolve home dir: %w", err)
-	}
-	dir := filepath.Join(home, ".pause", "activity")
+	dir := testActivityDir()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("activity: mkdir: %w", err)
 	}
 
-	screenshotsDir := filepath.Join(home, ".pause", "screenshots")
+	screenshotsDir := screenshotsBaseDir()
 	if err := os.MkdirAll(screenshotsDir, 0o755); err != nil {
 		return nil, fmt.Errorf("activity: screenshots mkdir: %w", err)
 	}
@@ -187,11 +183,10 @@ func (r *ActivityRecorder) listShots(fromT, toT int64) []ShotInfo {
 		if e.IsDir() || !strings.HasPrefix(e.Name(), "shot-") || !strings.HasSuffix(e.Name(), ".jpg") {
 			continue
 		}
-		info, err := e.Info()
-		if err != nil {
+		ts := parseShotTimestamp(e.Name())
+		if ts == 0 {
 			continue
 		}
-		ts := info.ModTime().Unix()
 		if ts >= fromT && ts <= toT {
 			shots = append(shots, ShotInfo{
 				Timestamp: ts,
@@ -354,11 +349,11 @@ func listShotsInDir(dir string, fromT, toT int64) []ShotInfo {
 		if e.IsDir() || !strings.HasPrefix(e.Name(), "shot-") || !strings.HasSuffix(e.Name(), ".jpg") {
 			continue
 		}
-		info, err := e.Info()
-		if err != nil {
+		// Parse timestamp from filename: shot-YYYY-MM-DD_HHMMSS.jpg
+		ts := parseShotTimestamp(e.Name())
+		if ts == 0 {
 			continue
 		}
-		ts := info.ModTime().Unix()
 		if ts >= fromT && ts <= toT {
 			shots = append(shots, ShotInfo{
 				Timestamp: ts,
@@ -371,6 +366,18 @@ func listShotsInDir(dir string, fromT, toT int64) []ShotInfo {
 		return shots[i].Timestamp < shots[j].Timestamp
 	})
 	return shots
+}
+
+// parseShotTimestamp extracts the unix timestamp from a shot filename.
+// Format: shot-2006-01-02_150405.jpg  (uses local time, matching screenshotJPEGName)
+func parseShotTimestamp(name string) int64 {
+	// Remove prefix "shot-" and suffix ".jpg"
+	mid := strings.TrimSuffix(strings.TrimPrefix(name, "shot-"), ".jpg")
+	t, err := time.ParseInLocation("2006-01-02_150405", mid, time.Local)
+	if err != nil {
+		return 0
+	}
+	return t.Unix()
 }
 
 func screenshotJPEGName(now time.Time) string {

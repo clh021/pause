@@ -5,7 +5,6 @@ import {
   getActivity,
   getAutoScreenshot,
   getShotUrl,
-  getScreenshotUrl,
   setAutoScreenshot,
   takeScreenshot
 } from '../api';
@@ -33,6 +32,14 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
   const [manScreenshotUrl, setManScreenshotUrl] = useState<string | null>(null);
   const msgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const manScreenshotUrlRef = useRef<string | null>(null);
+
+  // Cleanup object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (manScreenshotUrlRef.current) URL.revokeObjectURL(manScreenshotUrlRef.current);
+    };
+  }, []);
 
   const showMsg = useCallback((key: string, text: string, ok: boolean) => {
     setActionMsg({ key, text, ok });
@@ -79,8 +86,13 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
   const handleManualScreenshot = useCallback(async () => {
     setActionLoading('manualShot');
     try {
-      await takeScreenshot();
-      setManScreenshotUrl(`${getScreenshotUrl()}?t=${Date.now()}`);
+      // Capture returns the image blob; convert to object URL for preview
+      const blob = await takeScreenshot();
+      const url = URL.createObjectURL(blob);
+      // Revoke previous URL if any
+      if (manScreenshotUrlRef.current) URL.revokeObjectURL(manScreenshotUrlRef.current);
+      manScreenshotUrlRef.current = url;
+      setManScreenshotUrl(url);
       showMsg('manualShot', t(locale, 'controlShotDone'), true);
       void fetchActivity(selectedRange);
     } catch (err) {
@@ -282,7 +294,11 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
             </div>
 
             {/* Screenshot thumbnails on timeline */}
-            {activity!.shots.length > 0 && activity!.shots.map((shot) => (
+            {activity!.shots.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-medium text-[var(--text-secondary)]">{t(locale, 'controlShots')}</p>
+                <div className="flex flex-wrap gap-2">
+                  {activity!.shots.map((shot) => (
                     <button
                       key={shot.name}
                       type="button"
@@ -302,8 +318,10 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                         {new Date(shot.t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </button>
-                  ))
-                }
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

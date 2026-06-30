@@ -180,10 +180,30 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 	})
 }
 
+// testActivityDir is overridable in tests.
+var testActivityDir = defaultActivityDir
+
+func defaultActivityDir() string {
+	return filepath.Join(homeDir(), ".pause", "activity")
+}
+var testScreenshotDir = defaultScreenshotDir
+
 func (s *Server) screenshotDir() string {
+	return testScreenshotDir()
+}
+
+func screenshotsBaseDir() string {
+	return testScreenshotDir()
+}
+
+func homeDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".pause", "screenshots")
+	return home
+}
+
+func defaultScreenshotDir() string {
+	return filepath.Join(homeDir(), ".pause", "screenshots")
 }

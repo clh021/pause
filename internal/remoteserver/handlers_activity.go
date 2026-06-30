@@ -2,7 +2,9 @@ package remoteserver
 
 import (
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -82,8 +84,18 @@ func (s *Server) handleServeShot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Prevent path traversal: only allow filenames matching shot-*.jpg
+	if !strings.HasPrefix(name, "shot-") || !strings.HasSuffix(name, ".jpg") || strings.Contains(name, "/") || strings.Contains(name, "..") {
+		writeJSONError(w, http.StatusBadRequest, "invalid shot name")
+		return
+	}
+
 	dir := s.screenshotDir()
-	path := dir + "/" + name
+	if dir == "" {
+		writeJSONError(w, http.StatusInternalServerError, "cannot resolve screenshot directory")
+		return
+	}
+	path := filepath.Join(dir, name)
 
 	http.ServeFile(w, r, path)
 }
