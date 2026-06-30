@@ -184,7 +184,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
         <div className="flex items-center gap-3">
           <div
             className={`h-3 w-3 shrink-0 rounded-full ${
-              isResting ? 'bg-[#f59e0b]' : runtime?.globalEnabled ? 'bg-[#22c55e]' : 'bg-[#6b7280]'
+              isResting ? 'bg-[var(--status-resting)]' : runtime?.globalEnabled ? 'bg-[var(--status-running)]' : 'bg-[var(--status-disabled)]'
             }`}
           />
           <span className="text-sm text-[var(--text-primary)]">
@@ -196,7 +196,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
           </span>
         </div>
         {actionMsg && (
-          <span className={`text-xs ${actionMsg.ok ? 'text-[#22c55e]' : 'text-[#e81123]'}`}>
+          <span className={`text-xs ${actionMsg.ok ? 'text-[var(--positive-text)]' : 'text-[var(--negative-text)]'}`}>
             {actionMsg.text}
           </span>
         )}
@@ -292,7 +292,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                 <div
                   key={i}
                   className={`shrink-0 rounded-t-sm ${
-                    bar.active ? 'bg-[#22c55e]' : 'bg-[#374151]'
+                    bar.active ? 'bg-[var(--chart-bar-active)]' : 'bg-[var(--chart-bar-inactive)]'
                   }`}
                   style={{ width: `${100 / Math.max(activityBars.length, 1)}%`, height: bar.active ? '100%' : '30%' }}
                   title={new Date(bar.ts * 1000).toLocaleTimeString()}

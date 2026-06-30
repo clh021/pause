@@ -53,6 +53,11 @@
   --accent-bg: var(--accent);
   --card-bg: var(--surface-bg);
   --card-border: var(--surface-border);
+  --status-running: #22c55e;
+  --status-resting: #f59e0b;
+  --status-disabled: #6b7280;
+  --chart-bar-active: #22c55e;
+  --chart-bar-inactive: #374151;
   --positive-text: #2f7a66;
   --negative-text: #b44d3b;
   --error-bg: #fff0f0;
@@ -126,6 +131,11 @@ body[data-theme='dark'] {
   --accent-strong: #4b977f;
   --accent-soft: rgba(95, 181, 154, 0.22);
   --accent-ring: rgba(95, 181, 154, 0.36);
+  --status-running: #4ade80;
+  --status-resting: #fbbf24;
+  --status-disabled: #9ca3af;
+  --chart-bar-active: #4ade80;
+  --chart-bar-inactive: #6b7280;
   --positive-text: #74d3b5;
   --negative-text: #e8a28d;
   --error-bg: #351f1d;
