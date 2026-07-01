@@ -9,6 +9,9 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"syscall"
 	"unsafe"
 )
@@ -38,6 +41,9 @@ var (
 	procSelectObjectCapture    = gdi32CaptureDLL.NewProc("SelectObject")
 	procBitBlt                 = gdi32CaptureDLL.NewProc("BitBlt")
 	procGetDIBits              = gdi32CaptureDLL.NewProc("GetDIBits")
+
+	// Overridable in tests
+	lookupWindowsCaptureTool = exec.LookPath
 )
 
 type bitmapInfoHeader struct {
@@ -66,7 +72,33 @@ func NewScreenshotCapturer() ScreenshotCapturer {
 	return windowsScreenshotCapturer{}
 }
 
-func (windowsScreenshotCapturer) Capture(context.Context) ([]byte, error) {
+func (windowsScreenshotCapturer) Capture(ctx context.Context) ([]byte, error) {
+	// 1) Try external silent tools first (no screen flash)
+	if data, err := captureViaNircmd(ctx); err == nil && len(data) > 0 {
+		return data, nil
+	}
+
+	// 2) Fallback: GDI BitBlt (may cause brief flash on some drivers)
+	return captureViaGDI()
+}
+
+// captureViaNircmd uses nircmd.exe (https://www.nirsoft.net/utils/nircmd.html)
+// to take a silent screenshot. nircmd is a tiny freeware utility that does
+// not cause any screen flash.
+func captureViaNircmd(ctx context.Context) ([]byte, error) {
+	if _, err := lookupWindowsCaptureTool("nircmd.exe"); err != nil {
+		return nil, err
+	}
+	tmpFile := filepath.Join(os.TempDir(), "pause-ss-nircmd.png")
+	cmd := exec.CommandContext(ctx, "nircmd.exe", "savescreenshot", tmpFile)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("nircmd failed: %w: %s", err, string(output))
+	}
+	defer os.Remove(tmpFile)
+	return os.ReadFile(tmpFile)
+}
+
+func captureViaGDI() ([]byte, error) {
 	desktop, _, _ := procGetDesktopWindow.Call()
 	screenDC, _, err := procGetDC.Call(desktop)
 	if screenDC == 0 {

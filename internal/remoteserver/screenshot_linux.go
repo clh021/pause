@@ -47,11 +47,21 @@ func (linuxScreenshotCapturer) Capture(ctx context.Context) ([]byte, error) {
 }
 
 func linuxScreenshotCommandSpec(outputPath string) (string, []string, error) {
+	// ImageMagick import (X11, silent with -window root)
 	if _, err := lookupScreenshotCommand("import"); err == nil {
-		return "import", []string{"-window", "root", "-silent", outputPath}, nil
+		return "import", []string{"-window", "root", outputPath}, nil
 	}
+	// KDE spectacle (Wayland/X11, silent with -b -n)
+	if _, err := lookupScreenshotCommand("spectacle"); err == nil {
+		return "spectacle", []string{"-b", "-n", "-o", outputPath}, nil
+	}
+	// grim for wlroots-based Wayland compositors (Sway, Hyprland, etc.)
+	if _, err := lookupScreenshotCommand("grim"); err == nil {
+		return "grim", []string{outputPath}, nil
+	}
+	// Fallback: gnome-screenshot (may flash on some setups)
 	if _, err := lookupScreenshotCommand("gnome-screenshot"); err == nil {
 		return "gnome-screenshot", []string{"-f", outputPath}, nil
 	}
-	return "", nil, errors.New("no supported linux screenshot tool found")
+	return "", nil, errors.New("no supported linux screenshot tool found: install imagemagick, spectacle, grim, or gnome-screenshot")
 }

@@ -26,7 +26,7 @@ func TestLinuxScreenshotCommandSpecPrefersImport(t *testing.T) {
 	if name != "import" {
 		t.Fatalf("expected import, got %q", name)
 	}
-	if len(args) != 4 || args[3] != "/tmp/out.png" {
+	if len(args) != 3 || args[2] != "/tmp/out.png" {
 		t.Fatalf("unexpected args %#v", args)
 	}
 }
