@@ -22,6 +22,7 @@ const (
 	smCXVirtualScreen = 78
 	smCYVirtualScreen = 79
 	srccopy           = 0x00CC0020
+	captureBlt        = 0x40000000
 	biRGB             = 0
 	dibRGBColors      = 0
 )
@@ -35,6 +36,7 @@ var (
 	procReleaseDC              = user32CaptureDLL.NewProc("ReleaseDC")
 	procGetSystemMetrics       = user32CaptureDLL.NewProc("GetSystemMetrics")
 	procCreateCompatibleDC     = gdi32CaptureDLL.NewProc("CreateCompatibleDC")
+	procCreateDCW              = gdi32CaptureDLL.NewProc("CreateDCW")
 	procDeleteDC               = gdi32CaptureDLL.NewProc("DeleteDC")
 	procCreateCompatibleBitmap = gdi32CaptureDLL.NewProc("CreateCompatibleBitmap")
 	procDeleteObjectCapture    = gdi32CaptureDLL.NewProc("DeleteObject")
@@ -99,12 +101,21 @@ func captureViaNircmd(ctx context.Context) ([]byte, error) {
 }
 
 func captureViaGDI() ([]byte, error) {
-	desktop, _, _ := procGetDesktopWindow.Call()
-	screenDC, _, err := procGetDC.Call(desktop)
+	// Try CreateDC("DISPLAY") first — reads directly from the display driver,
+	// bypassing DWM composition. This reduces the chance of a flash on most systems.
+	screenDC, _, err := procCreateDCW.Call(
+		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("DISPLAY"))), 0, 0, 0)
 	if screenDC == 0 {
-		return nil, fmt.Errorf("GetDC failed: %w", err)
+		// Fallback: classic GetDC(GetDesktopWindow())
+		desktop, _, _ := procGetDesktopWindow.Call()
+		screenDC, _, err = procGetDC.Call(desktop)
+		if screenDC == 0 {
+			return nil, fmt.Errorf("GetDC failed: %w", err)
+		}
+		defer procReleaseDC.Call(desktop, screenDC)
+	} else {
+		defer procDeleteDC.Call(screenDC)
 	}
-	defer procReleaseDC.Call(desktop, screenDC)
 
 	memDC, _, err := procCreateCompatibleDC.Call(screenDC)
 	if memDC == 0 {
@@ -129,6 +140,8 @@ func captureViaGDI() ([]byte, error) {
 	oldObj, _, _ := procSelectObjectCapture.Call(memDC, bitmap)
 	defer procSelectObjectCapture.Call(memDC, oldObj)
 
+	// SRCCOPY | CAPTUREBLT — CAPTUREBLT tells DWM this is a screenshot
+	// so it can handle the frame correctly without visible artifacts.
 	ret, _, err := procBitBlt.Call(
 		memDC,
 		0,
@@ -138,7 +151,7 @@ func captureViaGDI() ([]byte, error) {
 		screenDC,
 		uintptr(x),
 		uintptr(y),
-		srccopy,
+		srccopy|captureBlt,
 	)
 	if ret == 0 {
 		return nil, fmt.Errorf("BitBlt failed: %w", err)
