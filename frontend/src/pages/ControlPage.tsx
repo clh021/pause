@@ -33,6 +33,9 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
   const [manScreenshotUrl, setManScreenshotUrl] = useState<string | null>(null);
   const [shotList, setShotList] = useState<ShotInfo[] | null>(null);
   const [shotListLoading, setShotListLoading] = useState(false);
+  const [allShots, setAllShots] = useState<ShotInfo[]>([]);
+  const [allShotsLoading, setAllShotsLoading] = useState(false);
+  const [hoveredShot, setHoveredShot] = useState<string | null>(null);
   const msgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const manScreenshotUrlRef = useRef<string | null>(null);
@@ -74,15 +77,28 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
     }
   }, []);
 
+  // Fetch ALL historical screenshots (from=0 means no time limit)
+  const fetchAllShots = useCallback(async () => {
+    setAllShotsLoading(true);
+    try {
+      const to = Math.floor(Date.now() / 1000);
+      const data = await getScreenshots(0, to);
+      setAllShots(Array.isArray(data) ? data : []);
+    } catch { setAllShots([]); } finally {
+      setAllShotsLoading(false);
+    }
+  }, []);
+
   // Load initial data
   useEffect(() => {
     const init = async () => {
       await fetchActivity(selectedRange);
       try { setAutoShot(await getAutoScreenshot()); } catch { /* ignore */ }
       void fetchShots(selectedRange);
+      void fetchAllShots();
     };
     void init();
-  }, [fetchActivity, selectedRange, fetchShots]);
+  }, [fetchActivity, selectedRange, fetchShots, fetchAllShots]);
 
   // Poll activity every 10s
   useEffect(() => {
@@ -112,6 +128,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
       setManScreenshotUrl(url);
       showMsg('manualShot', t(locale, 'controlShotDone'), true);
       void fetchActivity(selectedRange);
+      void fetchAllShots();
     } catch (err) {
       showMsg('manualShot', String(err), false);
     } finally {
@@ -354,20 +371,20 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
         )}
       </div>
 
-      {/* Standalone screenshots gallery */}
+      {/* All screenshots file list */}
       <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-[var(--text-primary)]">
             {t(locale, 'controlShots')}
-            {shotList && shotList.length > 0 && (
-              <span className="ml-1 text-xs font-normal text-[var(--text-secondary)]">({shotList.length})</span>
+            {allShots.length > 0 && (
+              <span className="ml-1 text-xs font-normal text-[var(--text-secondary)]">({allShots.length})</span>
             )}
           </h2>
         </div>
 
-        {shotListLoading && !shotList ? (
+        {allShotsLoading && allShots.length === 0 ? (
           <p className="py-4 text-center text-xs text-[var(--text-secondary)]">{t(locale, 'loading')}</p>
-        ) : !shotList || shotList.length === 0 ? (
+        ) : allShots.length === 0 ? (
           <div className="py-4 text-center">
             <p className="text-xs text-[var(--text-secondary)]">{t(locale, 'controlTimelineEmpty')}</p>
             <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">
@@ -375,28 +392,38 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
             </p>
           </div>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {shotList.map((shot) => (
+          <div className="relative space-y-1">
+            {allShots.map((shot) => (
               <button
                 key={shot.name}
                 type="button"
-                className={`group relative cursor-pointer overflow-hidden rounded-lg border ${
-                  selectedShot?.name === shot.name
-                    ? 'border-[var(--accent-bg)] ring-2 ring-[var(--accent-bg)]'
-                    : 'border-[var(--card-border)]'
+                className={`relative flex w-full cursor-pointer items-center gap-3 rounded-md border-0 px-3 py-2 text-left text-xs transition-colors hover:bg-[var(--seg-hover-bg)] ${
+                  selectedShot?.name === shot.name ? 'bg-[var(--seg-hover-bg)] ring-1 ring-[var(--accent-bg)]' : ''
                 } ${brokenShots.has(shot.name) ? 'hidden' : ''}`}
                 onClick={() => handleShotClick(shot)}
+                onMouseEnter={() => setHoveredShot(shot.name)}
+                onMouseLeave={() => setHoveredShot(null)}
               >
-                <img
-                  src={`${getShotUrl(shot.name)}?t=${shot.t}`}
-                  alt={shot.name}
-                  className="h-20 w-32 object-cover transition-opacity group-hover:opacity-80"
-                  onError={() => markShotBroken(shot.name)}
-                  loading="lazy"
-                />
-                <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-1 py-0.5 text-[10px] text-white">
+                {/* Filename */}
+                <span className="flex-1 truncate font-mono text-[var(--text-primary)]">{shot.name}</span>
+                {/* Timestamp */}
+                <span className="shrink-0 text-[var(--text-tertiary)]">
                   {new Date(shot.t * 1000).toLocaleString()}
-                </div>
+                </span>
+
+                {/* Hover preview tooltip */}
+                {hoveredShot === shot.name && (
+                  <div className="absolute bottom-full left-0 z-50 mb-2 overflow-hidden rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] shadow-[var(--shadow-raised)]">
+                    <img
+                      src={`${getShotUrl(shot.name)}?t=${shot.t}`}
+                      alt={shot.name}
+                      className="max-h-48 w-auto object-contain"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
               </button>
             ))}
           </div>
