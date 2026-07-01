@@ -4,6 +4,7 @@ import {
   forceUnlock,
   getActivity,
   getAutoScreenshot,
+  getScreenshots,
   getShotUrl,
   setAutoScreenshot,
   takeScreenshot
@@ -30,6 +31,8 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<{ key: string; text: string; ok: boolean } | null>(null);
   const [manScreenshotUrl, setManScreenshotUrl] = useState<string | null>(null);
+  const [shotList, setShotList] = useState<ShotInfo[] | null>(null);
+  const [shotListLoading, setShotListLoading] = useState(false);
   const msgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const manScreenshotUrlRef = useRef<string | null>(null);
@@ -59,14 +62,27 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
     }
   }, []);
 
+  const fetchShots = useCallback(async (range: TimeRange) => {
+    setShotListLoading(true);
+    try {
+      const to = Math.floor(Date.now() / 1000);
+      const from = to - RANGE_SEC[range];
+      const data = await getScreenshots(from, to);
+      setShotList(Array.isArray(data) ? data : []);
+    } catch { setShotList([]); } finally {
+      setShotListLoading(false);
+    }
+  }, []);
+
   // Load initial data
   useEffect(() => {
     const init = async () => {
       await fetchActivity(selectedRange);
       try { setAutoShot(await getAutoScreenshot()); } catch { /* ignore */ }
+      void fetchShots(selectedRange);
     };
     void init();
-  }, [fetchActivity, selectedRange]);
+  }, [fetchActivity, selectedRange, fetchShots]);
 
   // Poll activity every 10s
   useEffect(() => {
@@ -81,7 +97,8 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
   const handleRangeChange = useCallback((range: TimeRange) => {
     setSelectedRange(range);
     setSelectedShot(null);
-  }, []);
+    void fetchShots(range);
+  }, [fetchShots]);
 
   const handleManualScreenshot = useCallback(async () => {
     setActionLoading('manualShot');
@@ -334,6 +351,55 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
               </div>
             )}
           </>
+        )}
+      </div>
+
+      {/* Standalone screenshots gallery */}
+      <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+            {t(locale, 'controlShots')}
+            {shotList && shotList.length > 0 && (
+              <span className="ml-1 text-xs font-normal text-[var(--text-secondary)]">({shotList.length})</span>
+            )}
+          </h2>
+        </div>
+
+        {shotListLoading && !shotList ? (
+          <p className="py-4 text-center text-xs text-[var(--text-secondary)]">{t(locale, 'loading')}</p>
+        ) : !shotList || shotList.length === 0 ? (
+          <div className="py-4 text-center">
+            <p className="text-xs text-[var(--text-secondary)]">{t(locale, 'controlTimelineEmpty')}</p>
+            <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">
+              点击「{t(locale, 'controlManualShot')}」手动截图，或开启「{t(locale, 'controlAutoShot')}」让 Pause 在活动时自动捕获
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {shotList.map((shot) => (
+              <button
+                key={shot.name}
+                type="button"
+                className={`group relative cursor-pointer overflow-hidden rounded-lg border ${
+                  selectedShot?.name === shot.name
+                    ? 'border-[var(--accent-bg)] ring-2 ring-[var(--accent-bg)]'
+                    : 'border-[var(--card-border)]'
+                } ${brokenShots.has(shot.name) ? 'hidden' : ''}`}
+                onClick={() => handleShotClick(shot)}
+              >
+                <img
+                  src={`${getShotUrl(shot.name)}?t=${shot.t}`}
+                  alt={shot.name}
+                  className="h-20 w-32 object-cover transition-opacity group-hover:opacity-80"
+                  onError={() => markShotBroken(shot.name)}
+                  loading="lazy"
+                />
+                <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-1 py-0.5 text-[10px] text-white">
+                  {new Date(shot.t * 1000).toLocaleString()}
+                </div>
+              </button>
+            ))}
+          </div>
         )}
       </div>
 

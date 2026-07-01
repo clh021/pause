@@ -318,6 +318,15 @@ export function getShotUrl(name: string): string {
   return `${base}/shots/${encodeURIComponent(name)}`;
 }
 
+export async function getScreenshots(fromSec?: number, toSec?: number): Promise<ShotInfo[]> {
+  const params = new URLSearchParams();
+  if (fromSec !== undefined) params.set('from', String(fromSec));
+  if (toSec !== undefined) params.set('to', String(toSec));
+  const qs = params.toString();
+  const res = await webFetch(`/api/screenshots${qs ? '?' + qs : ''}`);
+  return res.json();
+}
+
 type RuntimeBrowserBridge = {
   BrowserOpenURL: (url: string) => void;
 };
