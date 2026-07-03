@@ -221,6 +221,22 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
     };
   }, []);
 
+  useEffect(() => {
+    if (!selectedShot) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPreviewBroken(false);
+        setSelectedShot(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [selectedShot]);
+
   const showMsg = useCallback((key: string, text: string, ok: boolean) => {
     setActionMsg({ key, text, ok });
     if (msgTimer.current) clearTimeout(msgTimer.current);
@@ -627,38 +643,66 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
           </section>
         )}
 
-        <section className="rounded-xl border border-[var(--surface-border)] bg-[var(--app-bg)] p-4 shadow-[var(--shadow-subtle)]">
-          <div className="mb-3">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlScreenshot')}</h3>
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">
-              {selectedShot ? formatMinuteLabel(locale, selectedShot.minuteStartSec) : t(locale, 'controlPreviewHint')}
-            </p>
-          </div>
-          {selectedShot && assetAccess ? (
-            previewBroken ? (
-              <p className="rounded-lg border border-[var(--error-border)] bg-[var(--error-bg)] px-3 py-4 text-sm text-[var(--error-text)]">
-                {t(locale, 'controlScreenshotError')}
-              </p>
-            ) : (
-              <div className="rounded-lg bg-[var(--surface-bg)] p-2">
-                <img
-                  src={`${getShotUrl(selectedShot.name, assetAccess)}${assetAccess.accessToken ? '&' : '?'}t=${selectedShot.minuteStartSec}`}
-                  alt={selectedShot.name}
-                  className="max-h-[32rem] w-full rounded-lg bg-[var(--surface-bg)] object-contain"
-                  onError={() => setPreviewBroken(true)}
-                />
-              </div>
-            )
-          ) : (
-            <div className="rounded-lg border border-dashed border-[var(--surface-border)] bg-[var(--surface-bg)] px-3 py-10 text-center text-sm text-[var(--text-secondary)]">
-              {t(locale, 'controlPreviewEmpty')}
-            </div>
-          )}
-          {selectedShot && (
-            <p className="mt-2 break-all text-[11px] text-[var(--text-tertiary)]">{selectedShot.name}</p>
-          )}
-        </section>
       </div>
+
+      {selectedShot && (
+        <>
+          <button
+            type="button"
+            aria-label={t(locale, 'close')}
+            className="fixed inset-[-8px] z-30 bg-[var(--dialog-scrim)]"
+            onClick={() => {
+              setPreviewBroken(false);
+              setSelectedShot(null);
+            }}
+          />
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label={t(locale, 'controlScreenshot')}
+            className="fixed inset-x-3 top-1/2 z-40 max-h-[calc(100vh-2rem)] -translate-y-1/2 rounded-[16px] border border-[var(--surface-border-strong)] bg-[var(--surface-bg)] p-4 shadow-[var(--surface-shadow)] sm:left-1/2 sm:right-auto sm:w-[min(72rem,calc(100vw-2rem))] sm:-translate-x-1/2"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlScreenshot')}</h3>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">{formatMinuteLabel(locale, selectedShot.minuteStartSec)}</p>
+                <p className="mt-1 break-all text-[11px] text-[var(--text-tertiary)]">{selectedShot.name}</p>
+              </div>
+              <button
+                type="button"
+                className="inline-flex cursor-pointer items-center rounded-md border border-[var(--surface-border)] bg-[var(--app-bg)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--seg-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--control-focus-ring)]"
+                onClick={() => {
+                  setPreviewBroken(false);
+                  setSelectedShot(null);
+                }}
+              >
+                {t(locale, 'close')}
+              </button>
+            </div>
+            {assetAccess ? (
+              previewBroken ? (
+                <p className="rounded-lg border border-[var(--error-border)] bg-[var(--error-bg)] px-3 py-4 text-sm text-[var(--error-text)]">
+                  {t(locale, 'controlScreenshotError')}
+                </p>
+              ) : (
+                <div className="rounded-lg bg-[var(--app-bg)] p-2">
+                  <img
+                    src={`${getShotUrl(selectedShot.name, assetAccess)}${assetAccess.accessToken ? '&' : '?'}t=${selectedShot.minuteStartSec}`}
+                    alt={selectedShot.name}
+                    className="max-h-[calc(100vh-10rem)] w-full rounded-lg bg-[var(--app-bg)] object-contain"
+                    onError={() => setPreviewBroken(true)}
+                  />
+                </div>
+              )
+            ) : (
+              <div className="rounded-lg border border-dashed border-[var(--surface-border)] bg-[var(--app-bg)] px-3 py-10 text-center text-sm text-[var(--text-secondary)]">
+                {t(locale, 'controlPreviewEmpty')}
+              </div>
+            )}
+          </section>
+        </>
+      )}
     </section>
   );
 }
