@@ -25,7 +25,7 @@ Options:
   -h, --help                Show this help
 
 Scanned artifact extensions:
-  .exe, .msi, .zip, .blockmap, .msix, .appx
+  .exe, .msi, .zip, .tar.gz, .blockmap, .msix, .appx
 EOF
 }
 
@@ -165,7 +165,7 @@ infer_asset_kind() {
     *-setup.exe) echo "installer" ;;
     *.msi) echo "installer" ;;
     *.msix|*.appx) echo "package" ;;
-    *.zip) echo "archive" ;;
+    *.zip|*.tar.gz) echo "archive" ;;
     *.blockmap) echo "blockmap" ;;
     *) echo "file" ;;
   esac
@@ -217,7 +217,7 @@ while IFS= read -r file; do
   ARTIFACTS+=("${file}")
 done < <(
   find "${ARTIFACTS_ROOT}" -type f \
-    \( -name "*.exe" -o -name "*.msi" -o -name "*.zip" -o -name "*.blockmap" -o -name "*.msix" -o -name "*.appx" \) \
+    \( -name "*.exe" -o -name "*.msi" -o -name "*.zip" -o -name "*.tar.gz" -o -name "*.blockmap" -o -name "*.msix" -o -name "*.appx" \) \
     | sort
 )
 
