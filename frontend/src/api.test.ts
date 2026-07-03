@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { RuntimeState, ReminderPatch, SettingsPatch, ReminderCreateInput } from './types';
 
 vi.hoisted(() => {
-  process.env.VITE_UPDATES_URL = 'https://example.com/updates.json';
-  process.env.VITE_APP_VERSION = '1.0.0';
+  vi.stubEnv('VITE_UPDATES_URL', 'https://example.com/updates.json');
+  vi.stubEnv('VITE_APP_VERSION', '1.0.0');
 });
 
 import * as api from './api';
@@ -40,6 +40,7 @@ const mockRuntimeState: RuntimeState = {
   idleThresholdSec: 300,
   lastTickActive: true,
   showTrayCountdown: true,
+  currentIdleSec: 0,
   overlaySkipAllowed: true,
   overlayNative: false,
   effectiveLanguage: 'en-US',
@@ -62,19 +63,19 @@ afterEach(() => {
 describe('isWebMode', () => {
   it('returns false when window.go.app.App exists — getSettings uses backend', async () => {
     setNativeMode();
-    vi.spyOn(global, 'fetch');
+    vi.spyOn(globalThis, 'fetch');
 
     await expect(api.getSettings()).rejects.toThrow();
     // fetch must NOT be called since isWebMode() is false
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it('returns true when window.go.app.App is undefined — getSettings uses fetch', async () => {
     setWebMode();
-    vi.spyOn(global, 'fetch').mockResolvedValue(createMockResponse({}));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(createMockResponse({}));
 
     await api.getSettings();
-    expect(global.fetch).toHaveBeenCalled();
+    expect(globalThis.fetch).toHaveBeenCalled();
   });
 });
 
@@ -87,23 +88,25 @@ describe('webFetch', () => {
   });
 
   it('makes GET request to correct URL', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(createMockResponse({}));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(createMockResponse({}));
 
     await api.getSettings();
 
-    expect(fetchSpy).toHaveBeenCalledWith('http://localhost:18680/api/settings', expect.objectContaining({
-      headers: expect.objectContaining({ 'Content-Type': 'application/json' })
+    expect(fetchSpy).toHaveBeenCalledWith('/api/settings', expect.objectContaining({
+      credentials: 'same-origin'
     }));
+    expect((fetchSpy.mock.calls[0][1]?.headers as Headers).get('Content-Type')).toBe('application/json');
   });
 
   it('sets Content-Type header', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(createMockResponse({}));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(createMockResponse({}));
 
     await api.getSettings();
 
     expect(fetchSpy.mock.calls[0][1]?.headers).toEqual(
-      expect.objectContaining({ 'Content-Type': 'application/json' })
+      expect.any(Headers)
     );
+    expect((fetchSpy.mock.calls[0][1]?.headers as Headers).get('Content-Type')).toBe('application/json');
   });
 
   it('returns parsed JSON on success', async () => {
@@ -113,7 +116,7 @@ describe('webFetch', () => {
       timer: { mode: 'real_time', idlePauseThresholdSec: 300 },
       ui: { showTrayCountdown: true, language: 'auto', theme: 'auto' }
     };
-    vi.spyOn(global, 'fetch').mockResolvedValue(createMockResponse(settingsData));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(createMockResponse(settingsData));
 
     const result = await api.getSettings();
 
@@ -121,7 +124,7 @@ describe('webFetch', () => {
   });
 
   it('throws on HTTP error', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       createMockResponse({ error: 'Server error' }, false, 500, 'Internal Server Error')
     );
 
@@ -135,7 +138,7 @@ describe('webFetch', () => {
       statusText: 'Bad Gateway',
       json: vi.fn().mockRejectedValue(new Error('Not JSON'))
     } as unknown as Response;
-    vi.spyOn(global, 'fetch').mockResolvedValue(badResponse);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(badResponse);
 
     await expect(api.getSettings()).rejects.toThrow('Bad Gateway');
   });
@@ -149,7 +152,7 @@ describe('API functions in web mode', () => {
 
   beforeEach(() => {
     setWebMode();
-    fetchSpy = vi.spyOn(global, 'fetch');
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
   describe('getSettings', () => {
@@ -164,7 +167,7 @@ describe('API functions in web mode', () => {
 
       const result = await api.getSettings();
 
-      expect(fetchSpy).toHaveBeenCalledWith('http://localhost:18680/api/settings', expect.any(Object));
+      expect(fetchSpy).toHaveBeenCalledWith('/api/settings', expect.objectContaining({ credentials: 'same-origin' }));
       expect(result).toEqual(data);
     });
   });
@@ -183,8 +186,9 @@ describe('API functions in web mode', () => {
       const result = await api.updateSettings(patch);
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        'http://localhost:18680/api/settings/update',
+        '/api/settings/update',
         expect.objectContaining({
+          credentials: 'same-origin',
           method: 'PATCH',
           body: JSON.stringify(patch)
         })
@@ -202,7 +206,7 @@ describe('API functions in web mode', () => {
 
       const result = await api.getReminders();
 
-      expect(fetchSpy).toHaveBeenCalledWith('http://localhost:18680/api/reminders', expect.any(Object));
+      expect(fetchSpy).toHaveBeenCalledWith('/api/reminders', expect.objectContaining({ credentials: 'same-origin' }));
       expect(result).toEqual(data);
     });
   });
@@ -218,8 +222,9 @@ describe('API functions in web mode', () => {
       const result = await api.createReminder(input);
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        'http://localhost:18680/api/reminders/create',
+        '/api/reminders/create',
         expect.objectContaining({
+          credentials: 'same-origin',
           method: 'POST',
           body: JSON.stringify(input)
         })
@@ -239,8 +244,9 @@ describe('API functions in web mode', () => {
       const result = await api.updateReminder(patch);
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        'http://localhost:18680/api/reminders/update/5',
+        '/api/reminders/update/5',
         expect.objectContaining({
+          credentials: 'same-origin',
           method: 'PUT',
           body: JSON.stringify(patch)
         })
@@ -259,8 +265,8 @@ describe('API functions in web mode', () => {
       const result = await api.deleteReminder(3);
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        'http://localhost:18680/api/reminders/delete/3',
-        expect.objectContaining({ method: 'DELETE' })
+        '/api/reminders/delete/3',
+        expect.objectContaining({ credentials: 'same-origin', method: 'DELETE' })
       );
       expect(result).toEqual(data);
     });
@@ -268,13 +274,13 @@ describe('API functions in web mode', () => {
 
   describe('getLaunchAtLogin', () => {
     it('calls GET /api/settings/launch-at-login and returns boolean', async () => {
-      fetchSpy.mockResolvedValue(createMockResponse(true));
+      fetchSpy.mockResolvedValue(createMockResponse({ enabled: true }));
 
       const result = await api.getLaunchAtLogin();
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        'http://localhost:18680/api/settings/launch-at-login',
-        expect.any(Object)
+        '/api/settings/launch-at-login',
+        expect.objectContaining({ credentials: 'same-origin' })
       );
       expect(result).toBe(true);
     });
@@ -282,13 +288,14 @@ describe('API functions in web mode', () => {
 
   describe('setLaunchAtLogin', () => {
     it('calls POST /api/settings/launch-at-login/set with body and returns boolean', async () => {
-      fetchSpy.mockResolvedValue(createMockResponse(true));
+      fetchSpy.mockResolvedValue(createMockResponse({ enabled: true }));
 
       const result = await api.setLaunchAtLogin(true);
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        'http://localhost:18680/api/settings/launch-at-login/set',
+        '/api/settings/launch-at-login/set',
         expect.objectContaining({
+          credentials: 'same-origin',
           method: 'POST',
           body: JSON.stringify({ enabled: true })
         })
@@ -303,7 +310,7 @@ describe('API functions in web mode', () => {
 
       const result = await api.getRuntimeState();
 
-      expect(fetchSpy).toHaveBeenCalledWith('http://localhost:18680/api/runtime', expect.any(Object));
+      expect(fetchSpy).toHaveBeenCalledWith('/api/runtime', expect.objectContaining({ credentials: 'same-origin' }));
       expect(result).toEqual(mockRuntimeState);
     });
   });
@@ -315,8 +322,8 @@ describe('API functions in web mode', () => {
       const result = await api.skipCurrentBreak();
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        'http://localhost:18680/api/skip-break',
-        expect.objectContaining({ method: 'POST' })
+        '/api/skip-break',
+        expect.objectContaining({ credentials: 'same-origin', method: 'POST' })
       );
       expect(result).toEqual(mockRuntimeState);
     });
@@ -330,8 +337,8 @@ describe('API functions in web mode', () => {
       const result = await api.getNotificationCapability();
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        'http://localhost:18680/api/notification/capability',
-        expect.any(Object)
+        '/api/notification/capability',
+        expect.objectContaining({ credentials: 'same-origin' })
       );
       expect(result).toEqual(data);
     });
@@ -356,8 +363,8 @@ describe('getPlatformInfo (indirect via checkForUpdates)', () => {
     vi.useFakeTimers();
     vi.stubGlobal('window', {
       go: { app: { App: undefined } },
-      setTimeout: global.setTimeout,
-      clearTimeout: global.clearTimeout
+        setTimeout: globalThis.setTimeout,
+        clearTimeout: globalThis.clearTimeout
     });
 
     const updatePayload = {
@@ -369,7 +376,7 @@ describe('getPlatformInfo (indirect via checkForUpdates)', () => {
       ]
     };
 
-    vi.spyOn(global, 'fetch').mockResolvedValue(createMockResponse(updatePayload));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(createMockResponse(updatePayload));
 
     const result = await api.checkForUpdates();
 
@@ -413,7 +420,7 @@ describe('onRuntimeTick in web mode', () => {
   });
 
   it('starts an interval that calls /api/runtime and passes state to callback', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(createMockResponse(mockRuntimeState));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(createMockResponse(mockRuntimeState));
     const callback = vi.fn();
 
     const cleanup = api.onRuntimeTick(callback);
@@ -423,7 +430,7 @@ describe('onRuntimeTick in web mode', () => {
 
     await vi.advanceTimersByTimeAsync(1000);
 
-    expect(fetchSpy).toHaveBeenCalledWith('http://localhost:18680/api/runtime', expect.any(Object));
+    expect(fetchSpy).toHaveBeenCalledWith('/api/runtime', expect.objectContaining({ credentials: 'same-origin' }));
     expect(callback).toHaveBeenCalledTimes(1);
     expect(callback).toHaveBeenCalledWith(mockRuntimeState);
 
@@ -431,7 +438,7 @@ describe('onRuntimeTick in web mode', () => {
   });
 
   it('cleanup function clears the interval', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(createMockResponse(mockRuntimeState));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(createMockResponse(mockRuntimeState));
     const callback = vi.fn();
 
     const cleanup = api.onRuntimeTick(callback);

@@ -1,12 +1,17 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import {
+  ERR_REMOTE_AUTH_INVALID,
+  ERR_REMOTE_AUTH_REQUIRED,
   ERR_UPDATE_DOWNLOAD_URL_MISSING,
   ERR_UPDATE_FEED_HTTP_PREFIX,
   ERR_UPDATE_FEED_NOT_CONFIGURED,
   ERR_UPDATE_FEED_TIMEOUT,
   ERR_UPDATE_FETCH_FAILED,
-  closeWindow
+  closeWindow,
+  isRemoteWebMode,
+  loginRemoteSession,
+  logoutRemoteSession
 } from './api';
 import { resolveLocale, t } from './i18n';
 import { HeroHeader } from './components/HeroHeader';
@@ -74,6 +79,12 @@ function resolveInlineErrorMessage(locale: 'zh-CN' | 'en-US', message: string): 
   if (normalized.includes(ERR_UPDATE_FETCH_FAILED)) {
     return t(locale, 'updateFetchFailedError');
   }
+  if (normalized.includes(ERR_REMOTE_AUTH_REQUIRED)) {
+    return t(locale, 'remoteAuthRequiredError');
+  }
+  if (normalized.includes(ERR_REMOTE_AUTH_INVALID)) {
+    return t(locale, 'remoteAuthInvalidError');
+  }
   return message;
 }
 
@@ -89,6 +100,9 @@ export function App() {
   const fallbackLocale = resolveLocale(undefined);
   const [settingsBootstrapError, setSettingsBootstrapError] = useState('');
   const [runtimeBootstrapError, setRuntimeBootstrapError] = useState('');
+  const [remoteToken, setRemoteToken] = useState('');
+  const [remoteAuthError, setRemoteAuthError] = useState('');
+  const [remoteAuthSubmitting, setRemoteAuthSubmitting] = useState(false);
   const [isWindowsCloseHovered, setIsWindowsCloseHovered] = useState(false);
   const [isWindowsClosePressed, setIsWindowsClosePressed] = useState(false);
   const [createPanelRequestId, setCreatePanelRequestId] = useState(0);
@@ -153,6 +167,7 @@ export function App() {
   const locale = resolveLocale(runtime?.effectiveLanguage);
   localeRef.current = locale;
   const bootstrapError = settingsBootstrapError || runtimeBootstrapError;
+  const showRemoteAuthPrompt = isRemoteWebMode() && bootstrapError.includes(ERR_REMOTE_AUTH_REQUIRED);
 
   const {
     settings,
@@ -217,6 +232,21 @@ export function App() {
     setRuntimeBootstrapError('');
     await Promise.all([reloadSettingsData(), refreshRuntime()]);
   }, [refreshRuntime, reloadSettingsData]);
+
+  const submitRemoteToken = useCallback(async () => {
+    setRemoteAuthSubmitting(true);
+    setRemoteAuthError('');
+    try {
+      await logoutRemoteSession();
+      await loginRemoteSession(remoteToken);
+      setRemoteToken('');
+      await retryBootstrapLoad();
+    } catch (error) {
+      setRemoteAuthError(String(error));
+    } finally {
+      setRemoteAuthSubmitting(false);
+    }
+  }, [remoteToken, retryBootstrapLoad]);
 
   useEffect(() => {
     document.body.dataset.platform = platformClass;
@@ -352,8 +382,54 @@ export function App() {
         </div>
         <CustomScrollArea className={contentHeightClass}>
           <div className="mx-auto max-w-[840px] p-[12px] sm:px-5 sm:py-[10px]">
-            {t(fallbackLocale, 'loading')}
-            {bootstrapError && (
+            {showRemoteAuthPrompt ? (
+              <div className="mx-auto mt-10 max-w-[480px] rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-6 shadow-[var(--surface-shadow)]">
+                <h1 className="text-lg font-semibold text-[var(--text-primary)]">{t(fallbackLocale, 'remoteAuthTitle')}</h1>
+                <p className="mt-2 text-sm text-[var(--text-secondary)]">{t(fallbackLocale, 'remoteAuthHint')}</p>
+                <label className="mt-5 block text-sm font-medium text-[var(--text-primary)]" htmlFor="remote-token">
+                  {t(fallbackLocale, 'remoteAuthTokenLabel')}
+                </label>
+                <input
+                  id="remote-token"
+                  type="password"
+                  autoComplete="current-password"
+                  className="mt-2 w-full rounded-xl border border-[var(--card-border)] bg-[var(--surface-bg)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--accent-bg)]"
+                  placeholder={t(fallbackLocale, 'remoteAuthTokenPlaceholder')}
+                  value={remoteToken}
+                  onChange={(event) => {
+                    setRemoteToken(event.target.value);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      void submitRemoteToken();
+                    }
+                  }}
+                />
+                {remoteAuthError && (
+                  <div className="mt-3">
+                    <InlineError message={resolveInlineErrorMessage(fallbackLocale, remoteAuthError)} />
+                  </div>
+                )}
+                <div className="mt-5 flex items-center gap-3">
+                  <button
+                    type="button"
+                    className="inline-flex min-w-[140px] items-center justify-center rounded-xl border-0 bg-[var(--accent-bg)] px-4 py-3 text-sm font-medium text-white transition hover:brightness-110 disabled:cursor-wait disabled:opacity-50"
+                    disabled={remoteAuthSubmitting}
+                    onClick={() => {
+                      void submitRemoteToken();
+                    }}
+                  >
+                    {remoteAuthSubmitting ? t(fallbackLocale, 'remoteAuthSubmitting') : t(fallbackLocale, 'remoteAuthSubmit')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {t(fallbackLocale, 'loading')}
+              </>
+            )}
+            {bootstrapError && !showRemoteAuthPrompt && (
               <InlineError
                 message={resolveInlineErrorMessage(fallbackLocale, bootstrapError)}
                 actionLabel={t(fallbackLocale, 'retry')}

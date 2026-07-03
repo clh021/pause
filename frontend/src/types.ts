@@ -85,6 +85,15 @@ export type PlatformInfo = {
   arch: string;
 };
 
+export type RemoteServerInfo = {
+  enabled: boolean;
+  running: boolean;
+  localBaseUrl: string;
+  accessToken?: string;
+  tokenRequired: boolean;
+  lastError?: string;
+};
+
 export type UpdateAsset = {
   name: string;
   path: string;

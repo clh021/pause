@@ -7,10 +7,12 @@ import type {
   ReminderConfig,
   ReminderCreateInput,
   ReminderPatch,
+  ShotInfo,
   RuntimeState,
   Settings,
   SettingsPatch,
   PlatformInfo,
+  RemoteServerInfo,
   UpdateAsset,
   UpdateCheckResult,
   ActivitySummary
@@ -20,13 +22,35 @@ function isWebMode(): boolean {
   return !(window as unknown as { go?: { app?: { App?: unknown } } }).go?.app?.App;
 }
 
-async function webFetch(path: string, options: RequestInit = {}): Promise<Response> {
-  const base = isWebMode() ? '' : 'http://localhost:18680';
-  const url = `${base}${path}`;
+export const ERR_REMOTE_AUTH_REQUIRED = 'ERR_REMOTE_AUTH_REQUIRED';
+export const ERR_REMOTE_AUTH_INVALID = 'ERR_REMOTE_AUTH_INVALID';
+export const ERR_REMOTE_CONTROL_UNAVAILABLE = 'ERR_REMOTE_CONTROL_UNAVAILABLE';
+
+export type RemoteAssetAccess = {
+  baseUrl: string;
+  accessToken: string;
+};
+
+let nativeRemoteServerInfoPromise: Promise<RemoteServerInfo> | null = null;
+
+async function remoteFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const context = await getRemoteRequestContext();
+  const headers = new Headers(options.headers || {});
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (context.accessToken !== '') {
+    headers.set('Authorization', `Bearer ${context.accessToken}`);
+  }
+  const url = `${context.baseUrl}${path}`;
   const res = await fetch(url, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
+    credentials: 'same-origin',
+    headers
   });
+  if (res.status === 401) {
+    throw new Error(isWebMode() ? ERR_REMOTE_AUTH_REQUIRED : ERR_REMOTE_AUTH_INVALID);
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error || `HTTP ${res.status}`);
@@ -56,6 +80,7 @@ type Backend = {
   RequestNotificationPermission: () => Promise<NotificationCapability>;
   OpenNotificationSettings: () => Promise<void>;
   GetPlatformInfo?: () => Promise<PlatformInfo>;
+  GetRemoteServerInfo?: () => Promise<RemoteServerInfo>;
   Quit?: () => Promise<void> | void;
   CloseWindow?: () => Promise<void> | void;
   StartBreakNow?: () => Promise<RuntimeState>;
@@ -78,13 +103,50 @@ function requireBackend(): Backend {
   return backend;
 }
 
+async function getNativeRemoteServerInfo(): Promise<RemoteServerInfo> {
+  if (isWebMode()) {
+    return {
+      enabled: true,
+      running: true,
+      localBaseUrl: '',
+      tokenRequired: true
+    };
+  }
+  if (nativeRemoteServerInfoPromise) {
+    return nativeRemoteServerInfoPromise;
+  }
+  const backend = requireBackend();
+  if (!backend.GetRemoteServerInfo) {
+    throw new Error(ERR_REMOTE_CONTROL_UNAVAILABLE);
+  }
+  nativeRemoteServerInfoPromise = backend.GetRemoteServerInfo().catch((error) => {
+    nativeRemoteServerInfoPromise = null;
+    throw error;
+  });
+  return nativeRemoteServerInfoPromise;
+}
+
+async function getRemoteRequestContext(): Promise<RemoteAssetAccess> {
+  if (isWebMode()) {
+    return { baseUrl: '', accessToken: '' };
+  }
+  const info = await getNativeRemoteServerInfo();
+  if (!info.enabled || !info.running || info.localBaseUrl.trim() === '') {
+    throw new Error(info.lastError || ERR_REMOTE_CONTROL_UNAVAILABLE);
+  }
+  return {
+    baseUrl: info.localBaseUrl,
+    accessToken: info.accessToken?.trim() || ''
+  };
+}
+
 function normalizeReminderConfigs(payload: ReminderConfig[] | null | undefined): ReminderConfig[] {
   return Array.isArray(payload) ? payload : [];
 }
 
 export async function getSettings(): Promise<Settings> {
   if (isWebMode()) {
-    const res = await webFetch('/api/settings');
+    const res = await remoteFetch('/api/settings');
     return res.json();
   }
   return requireBackend().GetSettings();
@@ -92,7 +154,7 @@ export async function getSettings(): Promise<Settings> {
 
 export async function updateSettings(patch: SettingsPatch): Promise<Settings> {
   if (isWebMode()) {
-    const res = await webFetch('/api/settings/update', {
+    const res = await remoteFetch('/api/settings/update', {
       method: 'PATCH',
       body: JSON.stringify(patch)
     });
@@ -103,7 +165,7 @@ export async function updateSettings(patch: SettingsPatch): Promise<Settings> {
 
 export async function getReminders(): Promise<ReminderConfig[]> {
   if (isWebMode()) {
-    const res = await webFetch('/api/reminders');
+    const res = await remoteFetch('/api/reminders');
     return res.json();
   }
   return normalizeReminderConfigs(await requireBackend().GetReminders());
@@ -111,7 +173,7 @@ export async function getReminders(): Promise<ReminderConfig[]> {
 
 export async function createReminder(input: ReminderCreateInput): Promise<ReminderConfig[]> {
   if (isWebMode()) {
-    const res = await webFetch('/api/reminders/create', {
+    const res = await remoteFetch('/api/reminders/create', {
       method: 'POST',
       body: JSON.stringify(input)
     });
@@ -122,7 +184,7 @@ export async function createReminder(input: ReminderCreateInput): Promise<Remind
 
 export async function deleteReminder(reminderID: number): Promise<ReminderConfig[]> {
   if (isWebMode()) {
-    const res = await webFetch(`/api/reminders/delete/${reminderID}`, {
+    const res = await remoteFetch(`/api/reminders/delete/${reminderID}`, {
       method: 'DELETE'
     });
     return res.json();
@@ -132,7 +194,7 @@ export async function deleteReminder(reminderID: number): Promise<ReminderConfig
 
 export async function updateReminder(patch: ReminderPatch): Promise<ReminderConfig[]> {
   if (isWebMode()) {
-    const res = await webFetch(`/api/reminders/update/${patch.id}`, {
+    const res = await remoteFetch(`/api/reminders/update/${patch.id}`, {
       method: 'PUT',
       body: JSON.stringify(patch)
     });
@@ -143,26 +205,28 @@ export async function updateReminder(patch: ReminderPatch): Promise<ReminderConf
 
 export async function getLaunchAtLogin(): Promise<boolean> {
   if (isWebMode()) {
-    const res = await webFetch('/api/settings/launch-at-login');
-    return res.json();
+    const res = await remoteFetch('/api/settings/launch-at-login');
+    const data = (await res.json()) as { enabled: boolean };
+    return data.enabled;
   }
   return requireBackend().GetLaunchAtLogin();
 }
 
 export async function setLaunchAtLogin(enabled: boolean): Promise<boolean> {
   if (isWebMode()) {
-    const res = await webFetch('/api/settings/launch-at-login/set', {
+    const res = await remoteFetch('/api/settings/launch-at-login/set', {
       method: 'POST',
       body: JSON.stringify({enabled})
     });
-    return res.json();
+    const data = (await res.json()) as { enabled: boolean };
+    return data.enabled;
   }
   return requireBackend().SetLaunchAtLogin(enabled);
 }
 
 export async function getRuntimeState(): Promise<RuntimeState> {
   if (isWebMode()) {
-    const res = await webFetch('/api/runtime');
+    const res = await remoteFetch('/api/runtime');
     return res.json();
   }
   return requireBackend().GetRuntimeState();
@@ -170,7 +234,7 @@ export async function getRuntimeState(): Promise<RuntimeState> {
 
 export async function getAnalyticsWeeklyStats(fromSec: number, toSec: number): Promise<AnalyticsWeeklyStats> {
   if (isWebMode()) {
-    const res = await webFetch(`/api/analytics/weekly?fromSec=${fromSec}&toSec=${toSec}`);
+    const res = await remoteFetch(`/api/analytics/weekly?fromSec=${fromSec}&toSec=${toSec}`);
     return res.json();
   }
   return requireBackend().GetAnalyticsWeeklyStats(fromSec, toSec);
@@ -178,7 +242,7 @@ export async function getAnalyticsWeeklyStats(fromSec: number, toSec: number): P
 
 export async function getAnalyticsSummary(fromSec: number, toSec: number): Promise<AnalyticsSummary> {
   if (isWebMode()) {
-    const res = await webFetch(`/api/analytics/summary?fromSec=${fromSec}&toSec=${toSec}`);
+    const res = await remoteFetch(`/api/analytics/summary?fromSec=${fromSec}&toSec=${toSec}`);
     return res.json();
   }
   return requireBackend().GetAnalyticsSummary(fromSec, toSec);
@@ -186,7 +250,7 @@ export async function getAnalyticsSummary(fromSec: number, toSec: number): Promi
 
 export async function getAnalyticsTrendByDay(fromSec: number, toSec: number): Promise<AnalyticsTrend> {
   if (isWebMode()) {
-    const res = await webFetch(`/api/analytics/trend?fromSec=${fromSec}&toSec=${toSec}`);
+    const res = await remoteFetch(`/api/analytics/trend?fromSec=${fromSec}&toSec=${toSec}`);
     return res.json();
   }
   return requireBackend().GetAnalyticsTrendByDay(fromSec, toSec);
@@ -194,7 +258,7 @@ export async function getAnalyticsTrendByDay(fromSec: number, toSec: number): Pr
 
 export async function getAnalyticsBreakTypeDistribution(fromSec: number, toSec: number): Promise<AnalyticsBreakTypeDistribution> {
   if (isWebMode()) {
-    const res = await webFetch(`/api/analytics/distribution?fromSec=${fromSec}&toSec=${toSec}`);
+    const res = await remoteFetch(`/api/analytics/distribution?fromSec=${fromSec}&toSec=${toSec}`);
     return res.json();
   }
   return requireBackend().GetAnalyticsBreakTypeDistribution(fromSec, toSec);
@@ -202,7 +266,7 @@ export async function getAnalyticsBreakTypeDistribution(fromSec: number, toSec: 
 
 export async function skipCurrentBreak(): Promise<RuntimeState> {
   if (isWebMode()) {
-    const res = await webFetch('/api/skip-break', { method: 'POST' });
+    const res = await remoteFetch('/api/skip-break', { method: 'POST' });
     return res.json();
   }
   return requireBackend().SkipCurrentBreak();
@@ -210,7 +274,7 @@ export async function skipCurrentBreak(): Promise<RuntimeState> {
 
 export async function postponeCurrentBreak(): Promise<RuntimeState> {
   if (isWebMode()) {
-    const res = await webFetch('/api/skip-break', { method: 'POST' });
+    const res = await remoteFetch('/api/skip-break', { method: 'POST' });
     return res.json();
   }
   return requireBackend().PostponeCurrentBreak();
@@ -218,7 +282,7 @@ export async function postponeCurrentBreak(): Promise<RuntimeState> {
 
 export async function getNotificationCapability(): Promise<NotificationCapability> {
   if (isWebMode()) {
-    const res = await webFetch('/api/notification/capability');
+    const res = await remoteFetch('/api/notification/capability');
     return res.json();
   }
   return requireBackend().GetNotificationCapability();
@@ -226,7 +290,7 @@ export async function getNotificationCapability(): Promise<NotificationCapabilit
 
 export async function requestNotificationPermission(): Promise<NotificationCapability> {
   if (isWebMode()) {
-    const res = await webFetch('/api/notification/request', { method: 'POST' });
+    const res = await remoteFetch('/api/notification/request', { method: 'POST' });
     return res.json();
   }
   return requireBackend().RequestNotificationPermission();
@@ -234,7 +298,7 @@ export async function requestNotificationPermission(): Promise<NotificationCapab
 
 export async function openNotificationSettings(): Promise<void> {
   if (isWebMode()) {
-    await webFetch('/api/notification/open-settings', { method: 'POST' });
+    await remoteFetch('/api/notification/open-settings', { method: 'POST' });
     return;
   }
   return requireBackend().OpenNotificationSettings();
@@ -242,7 +306,7 @@ export async function openNotificationSettings(): Promise<void> {
 
 export async function quitApp(): Promise<void> {
   if (isWebMode()) {
-    await webFetch('/api/quit', { method: 'POST' });
+    await remoteFetch('/api/quit', { method: 'POST' });
     return;
   }
   const backend = requireBackend();
@@ -265,7 +329,7 @@ export async function closeWindow(): Promise<void> {
 
 export async function forceBreak(): Promise<RuntimeState> {
   if (isWebMode()) {
-    const res = await webFetch('/api/force-break', { method: 'POST' });
+    const res = await remoteFetch('/api/force-break', { method: 'POST' });
     return res.json();
   }
   return requireBackend().StartBreakNow?.() ?? requireBackend().GetRuntimeState();
@@ -273,20 +337,57 @@ export async function forceBreak(): Promise<RuntimeState> {
 
 export async function forceUnlock(): Promise<RuntimeState> {
   if (isWebMode()) {
-    const res = await webFetch('/api/force-unlock', { method: 'POST' });
+    const res = await remoteFetch('/api/force-unlock', { method: 'POST' });
     return res.json();
   }
   return requireBackend().SkipCurrentBreak();
 }
 
 export async function takeScreenshot(): Promise<Blob> {
-  const res = await webFetch('/screenshot');
+  const res = await remoteFetch('/screenshot');
   return res.blob();
 }
 
-export function getScreenshotUrl(): string {
-  const base = isWebMode() ? '' : 'http://localhost:18680';
-  return `${base}/screenshot`;
+export async function loginRemoteSession(token: string): Promise<void> {
+  if (!isWebMode()) {
+    return;
+  }
+  const value = String(token ?? '').trim();
+  if (value === '') {
+    throw new Error(ERR_REMOTE_AUTH_REQUIRED);
+  }
+  const res = await fetch('/api/auth/session', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: value })
+  });
+  if (res.status === 401) {
+    throw new Error(ERR_REMOTE_AUTH_INVALID);
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(body.error || `HTTP ${res.status}`);
+  }
+}
+
+export async function logoutRemoteSession(): Promise<void> {
+  if (!isWebMode()) {
+    return;
+  }
+  await fetch('/api/auth/session', {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
+export function isRemoteWebMode(): boolean {
+  return isWebMode();
+}
+
+export async function getRemoteAssetAccess(): Promise<RemoteAssetAccess> {
+  return getRemoteRequestContext();
 }
 
 export async function getActivity(fromSec?: number, toSec?: number): Promise<ActivitySummary> {
@@ -294,18 +395,18 @@ export async function getActivity(fromSec?: number, toSec?: number): Promise<Act
   if (fromSec !== undefined) params.set('from', String(fromSec));
   if (toSec !== undefined) params.set('to', String(toSec));
   const qs = params.toString();
-  const res = await webFetch(`/api/activity${qs ? '?' + qs : ''}`);
+  const res = await remoteFetch(`/api/activity${qs ? '?' + qs : ''}`);
   return res.json();
 }
 
 export async function getAutoScreenshot(): Promise<boolean> {
-  const res = await webFetch('/api/settings/auto-screenshot');
+  const res = await remoteFetch('/api/settings/auto-screenshot');
   const data = (await res.json()) as { enabled: boolean };
   return data.enabled;
 }
 
 export async function setAutoScreenshot(enabled: boolean): Promise<boolean> {
-  const res = await webFetch('/api/settings/auto-screenshot', {
+  const res = await remoteFetch('/api/settings/auto-screenshot', {
     method: 'POST',
     body: JSON.stringify({ enabled })
   });
@@ -313,9 +414,14 @@ export async function setAutoScreenshot(enabled: boolean): Promise<boolean> {
   return data.enabled;
 }
 
-export function getShotUrl(name: string): string {
-  const base = isWebMode() ? '' : 'http://localhost:18680';
-  return `${base}/shots/${encodeURIComponent(name)}`;
+export function getShotUrl(name: string, access?: RemoteAssetAccess | null): string {
+  const base = access?.baseUrl ?? '';
+  const params = new URLSearchParams();
+  if (access?.accessToken) {
+    params.set('access_token', access.accessToken);
+  }
+  const qs = params.toString();
+  return `${base}/shots/${encodeURIComponent(name)}${qs ? `?${qs}` : ''}`;
 }
 
 export async function getScreenshots(fromSec?: number, toSec?: number): Promise<ShotInfo[]> {
@@ -323,7 +429,7 @@ export async function getScreenshots(fromSec?: number, toSec?: number): Promise<
   if (fromSec !== undefined) params.set('from', String(fromSec));
   if (toSec !== undefined) params.set('to', String(toSec));
   const qs = params.toString();
-  const res = await webFetch(`/api/screenshots${qs ? '?' + qs : ''}`);
+  const res = await remoteFetch(`/api/screenshots${qs ? '?' + qs : ''}`);
   return res.json();
 }
 
@@ -491,7 +597,7 @@ export function onRuntimeTick(callback: (state: RuntimeState) => void): () => vo
   if (isWebMode()) {
     const interval = setInterval(async () => {
       try {
-        const res = await webFetch('/api/runtime');
+        const res = await remoteFetch('/api/runtime');
         const state = (await res.json()) as RuntimeState;
         callback(state);
       } catch { /* ignore polling errors */ }

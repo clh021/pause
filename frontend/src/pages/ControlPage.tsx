@@ -4,13 +4,16 @@ import {
   forceUnlock,
   getActivity,
   getAutoScreenshot,
+  getRemoteAssetAccess,
   getScreenshots,
   getShotUrl,
+  isRemoteWebMode,
   setAutoScreenshot,
   takeScreenshot
 } from '../api';
 import { t, type Locale } from '../i18n';
 import type { ActivitySummary, RuntimeState, ShotInfo } from '../types';
+import type { RemoteAssetAccess } from '../api';
 
 type ControlPageProps = {
   locale: Locale;
@@ -31,11 +34,12 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<{ key: string; text: string; ok: boolean } | null>(null);
   const [manScreenshotUrl, setManScreenshotUrl] = useState<string | null>(null);
-  const [shotList, setShotList] = useState<ShotInfo[] | null>(null);
-  const [shotListLoading, setShotListLoading] = useState(false);
   const [allShots, setAllShots] = useState<ShotInfo[]>([]);
   const [allShotsLoading, setAllShotsLoading] = useState(false);
   const [hoveredShot, setHoveredShot] = useState<string | null>(null);
+  const [assetAccess, setAssetAccess] = useState<RemoteAssetAccess | null>(() =>
+    isRemoteWebMode() ? { baseUrl: '', accessToken: '' } : null
+  );
   const msgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const manScreenshotUrlRef = useRef<string | null>(null);
@@ -65,18 +69,6 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
     }
   }, []);
 
-  const fetchShots = useCallback(async (range: TimeRange) => {
-    setShotListLoading(true);
-    try {
-      const to = Math.floor(Date.now() / 1000);
-      const from = to - RANGE_SEC[range];
-      const data = await getScreenshots(from, to);
-      setShotList(Array.isArray(data) ? data : []);
-    } catch { setShotList([]); } finally {
-      setShotListLoading(false);
-    }
-  }, []);
-
   // Fetch ALL historical screenshots (from=0 means no time limit)
   const fetchAllShots = useCallback(async () => {
     setAllShotsLoading(true);
@@ -93,12 +85,12 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
   useEffect(() => {
     const init = async () => {
       await fetchActivity(selectedRange);
+      try { setAssetAccess(await getRemoteAssetAccess()); } catch { /* ignore */ }
       try { setAutoShot(await getAutoScreenshot()); } catch { /* ignore */ }
-      void fetchShots(selectedRange);
       void fetchAllShots();
     };
     void init();
-  }, [fetchActivity, selectedRange, fetchShots, fetchAllShots]);
+  }, [fetchActivity, selectedRange, fetchAllShots]);
 
   // Poll activity every 10s
   useEffect(() => {
@@ -113,8 +105,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
   const handleRangeChange = useCallback((range: TimeRange) => {
     setSelectedRange(range);
     setSelectedShot(null);
-    void fetchShots(range);
-  }, [fetchShots]);
+  }, []);
 
   const handleManualScreenshot = useCallback(async () => {
     setActionLoading('manualShot');
@@ -134,7 +125,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
     } finally {
       setActionLoading(null);
     }
-  }, [locale, showMsg, fetchActivity, selectedRange]);
+  }, [locale, showMsg, fetchActivity, fetchAllShots, selectedRange]);
 
   const handleForceBreak = useCallback(async () => {
     setActionLoading('forceBreak');
@@ -197,10 +188,6 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
   }
 
   // Map shots to timeline positions
-  const rangeSec = RANGE_SEC[selectedRange];
-  const nowTs = Math.floor(Date.now() / 1000);
-  const fromTs = nowTs - rangeSec;
-
   // ---- Summarize ----
   const activeMin = activity ? Math.round(activity.activeSec / 60) : 0;
   const idleMin = activity ? Math.round(activity.idleSec / 60) : 0;
@@ -335,7 +322,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
             </div>
 
             {/* Screenshot thumbnails on timeline */}
-            {activity && activity.shots && activity.shots.length > 0 && (
+            {activity && activity.shots && activity.shots.length > 0 && assetAccess && (
               <div className="mt-3 space-y-2">
                 <p className="text-xs font-medium text-[var(--text-secondary)]">
                   {t(locale, 'controlShots')}
@@ -354,7 +341,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                       onClick={() => handleShotClick(shot)}
                     >
                       <img
-                        src={`${getShotUrl(shot.name)}?t=${shot.t}`}
+                        src={`${getShotUrl(shot.name, assetAccess)}${assetAccess?.accessToken ? '&' : '?'}t=${shot.t}`}
                         alt={shot.name}
                         className="h-16 w-24 object-cover transition-opacity group-hover:opacity-80"
                         onError={() => markShotBroken(shot.name)}
@@ -412,10 +399,10 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                 </span>
 
                 {/* Hover preview tooltip */}
-                {hoveredShot === shot.name && (
+                {hoveredShot === shot.name && assetAccess && (
                   <div className="absolute bottom-full left-0 z-50 mb-2 overflow-hidden rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] shadow-[var(--shadow-raised)]">
                     <img
-                      src={`${getShotUrl(shot.name)}?t=${shot.t}`}
+                      src={`${getShotUrl(shot.name, assetAccess)}${assetAccess?.accessToken ? '&' : '?'}t=${shot.t}`}
                       alt={shot.name}
                       className="max-h-48 w-auto object-contain"
                       onError={(e) => {
@@ -431,7 +418,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
       </div>
 
       {/* Full screenshot preview */}
-      {selectedShot && (
+      {selectedShot && assetAccess && (
         <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-[var(--text-primary)]">
@@ -446,7 +433,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
             </button>
           </div>
           <img
-            src={`${getShotUrl(selectedShot.name)}?t=${selectedShot.t}`}
+            src={`${getShotUrl(selectedShot.name, assetAccess)}${assetAccess?.accessToken ? '&' : '?'}t=${selectedShot.t}`}
             alt={selectedShot.name}
             className="max-h-[70vh] w-full rounded-lg object-contain"
             onError={(e) => {
