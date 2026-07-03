@@ -9,13 +9,15 @@ import (
 )
 
 func RunHeadless(configPath string) error {
-	desktopApp, err := NewApp(configPath)
+	desktopApp, err := NewHeadlessApp(configPath)
 	if err != nil {
 		return err
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	desktopApp.setQuitFunc(stop)
+	defer desktopApp.setQuitFunc(nil)
 
 	desktopApp.Startup(ctx)
 	info := desktopApp.GetRemoteServerInfo()
@@ -24,6 +26,7 @@ func RunHeadless(configPath string) error {
 	}
 	logx.Infof("app.headless_running")
 	<-ctx.Done()
+	desktopApp.Shutdown(context.Background())
 	logx.Infof("app.headless_stopped")
 	return nil
 }

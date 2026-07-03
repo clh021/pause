@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 
 	"pause/internal/backend/bootstrap"
@@ -26,6 +27,8 @@ type App struct {
 	remoteServerConfig     remoteserver.Config
 	remoteServerLastErr    string
 	quitRequested          atomic.Bool
+	quitMu                 sync.Mutex
+	quitFunc               func()
 }
 
 type engineRuntime = bootstrap.RuntimeEngine

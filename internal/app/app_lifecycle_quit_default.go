@@ -10,4 +10,7 @@ func (a *App) Quit() {
 	}
 	logx.Infof("app.quit ignored reason=headless_build")
 	a.quitRequested.Store(true)
+	if a.runQuitFunc() {
+		return
+	}
 }

@@ -12,6 +12,14 @@ import (
 )
 
 func NewApp(configPath string) (*App, error) {
+	return newApp(configPath, newDesktopController())
+}
+
+func NewHeadlessApp(configPath string) (*App, error) {
+	return newApp(configPath, newNoopDesktopController())
+}
+
+func newApp(configPath string, desktop desktopController) (*App, error) {
 	if configPath == "" {
 		resolved, err := defaultConfigPath()
 		if err != nil {
@@ -50,7 +58,7 @@ func NewApp(configPath string) (*App, error) {
 		settingsSvc:            runtime.SettingsService,
 		notifier:               runtime.Notifier,
 		notificationCapability: runtime.NotificationCapabilityProvider,
-		desktop:                newDesktopController(),
+		desktop:                desktop,
 		remoteServerConfig:     remoteserver.DefaultConfig(),
 	}, nil
 }

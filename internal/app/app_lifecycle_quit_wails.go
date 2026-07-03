@@ -17,6 +17,9 @@ func (a *App) Quit() {
 	}
 	logx.Infof("app.quit requested source=%s", quitCallSource())
 	a.quitRequested.Store(true)
+	if a.runQuitFunc() {
+		return
+	}
 	if a.ctx == nil {
 		logx.Warnf("app.quit skipped reason=missing_context")
 		return
