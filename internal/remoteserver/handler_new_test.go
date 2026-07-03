@@ -260,6 +260,38 @@ func TestActivityRecorder_AutoScreenshotRepeatsEveryThreeActiveMinutes(t *testin
 	}
 }
 
+func TestActivityRecorder_AutoScreenshotGapResetsActiveMinuteStreak(t *testing.T) {
+	dir := t.TempDir()
+	origScreenshotDir := testScreenshotDir
+	testScreenshotDir = func() string { return dir }
+	defer func() { testScreenshotDir = origScreenshotDir }()
+
+	img := image.NewRGBA(image.Rect(0, 0, 4, 4))
+	var pngBuf bytes.Buffer
+	if err := png.Encode(&pngBuf, img); err != nil {
+		t.Fatalf("png encode: %v", err)
+	}
+
+	svc := &ScreenshotService{capturer: fakeScreenshotCapturer{png: pngBuf.Bytes()}, dir: dir, now: time.Now}
+	engine := &fakeRuntimeEngine{rt: state.RuntimeState{LastTickActive: true, CurrentIdleSec: 0}}
+	rec, err := NewActivityRecorder(engine, svc, true)
+	if err != nil {
+		t.Fatalf("NewActivityRecorder err=%v", err)
+	}
+	defer rec.Close()
+
+	base := time.Date(2026, 7, 1, 10, 0, 0, 0, time.Local)
+	rec.nowFn = func() time.Time { return base }
+	rec.Tick(context.Background())
+	rec.nowFn = func() time.Time { return base.Add(5 * time.Minute) }
+	rec.Tick(context.Background())
+
+	shots := listShotsInDir(dir, base.Unix(), base.Add(6*time.Minute).Unix())
+	if len(shots) != 2 {
+		t.Fatalf("expected streak reset after gap, got %d shots", len(shots))
+	}
+}
+
 func TestActivityRecorder_NoScreenshotWhenDisabled(t *testing.T) {
 	dir := t.TempDir()
 	svc := &ScreenshotService{capturer: fakeScreenshotCapturer{png: []byte("fake-png-data")}, dir: dir, now: time.Now}

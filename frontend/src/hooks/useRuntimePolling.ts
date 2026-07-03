@@ -78,9 +78,10 @@ export function useRuntimePolling({ setError, setBootstrapError, clearError }: U
       }
     };
 
-    void refreshRuntime();
+    void refreshRuntime().finally(() => {
+      scheduleNextPoll();
+    });
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    scheduleNextPoll();
 
     return () => {
       mountedRef.current = false;

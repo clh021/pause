@@ -126,7 +126,7 @@ func (r *ActivityRecorder) nextAutoScreenshotMinuteLocked(rec ActivityRecord) in
 		r.currentMinuteAct = false
 	}
 	if minuteStart != r.currentMinuteStart {
-		if !r.currentMinuteAct {
+		if minuteStart-r.currentMinuteStart > 60 || !r.currentMinuteAct {
 			r.activeMinuteStreak = 0
 		}
 		r.currentMinuteStart = minuteStart

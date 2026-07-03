@@ -96,6 +96,9 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
     try {
       const data = await getActivity();
       setActivity(data);
+      return data;
+    } catch {
+      return null;
     } finally {
       setLoading(false);
     }
@@ -132,8 +135,11 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
       }
       pollTimer.current = setTimeout(async () => {
         pollTimer.current = null;
-        await fetchActivity();
-        schedulePolling();
+        try {
+          await fetchActivity();
+        } finally {
+          schedulePolling();
+        }
       }, 20000);
     };
     const onVisibilityChange = () => {
