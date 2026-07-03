@@ -144,8 +144,10 @@ if [[ -d "${ROOT_DIR}/frontend/dist" ]] && [[ -f "${ROOT_DIR}/frontend/dist/inde
 fi
 
 STAMP_FILE="$(mktemp /tmp/pause-linux-build-stamp-XXXXXX)"
+STAGING_ROOT="$(mktemp -d /tmp/pause-linux-bundle-XXXXXX)"
 cleanup_stamp() {
   rm -f "${STAMP_FILE}"
+  rm -rf "${STAGING_ROOT}"
 }
 trap cleanup_stamp EXIT
 touch "${STAMP_FILE}"
@@ -201,11 +203,11 @@ if [[ ! -f "${SOURCE_BINARY}" ]]; then
 fi
 
 BUNDLE_NAME="${APP_NAME}-v${ARTIFACT_VERSION}-${LINUX_ARCH_LABEL}"
-STAGING_DIR="${LINUX_OUTPUT_DIR}/${BUNDLE_NAME}"
+STAGING_DIR="${STAGING_ROOT}/${BUNDLE_NAME}"
 ARCHIVE_PATH="${LINUX_OUTPUT_DIR}/${BUNDLE_NAME}.tar.gz"
 
 echo "[2/3] Preparing portable bundle in ${STAGING_DIR}"
-rm -rf "${STAGING_DIR}"
+rm -rf "${LINUX_OUTPUT_DIR:?}/${BUNDLE_NAME}"
 mkdir -p "${STAGING_DIR}"
 
 cp "${SOURCE_BINARY}" "${STAGING_DIR}/${APP_NAME}"
@@ -249,7 +251,7 @@ EOF
 
 echo "[3/3] Creating archive ${ARCHIVE_PATH}"
 rm -f "${ARCHIVE_PATH}"
-tar -C "${LINUX_OUTPUT_DIR}" -czf "${ARCHIVE_PATH}" "${BUNDLE_NAME}"
+tar -C "${STAGING_ROOT}" -czf "${ARCHIVE_PATH}" "${BUNDLE_NAME}"
 
 if [[ ! -f "${ARCHIVE_PATH}" ]]; then
   echo "ERROR: expected Linux archive missing: ${ARCHIVE_PATH}" >&2
