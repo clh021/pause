@@ -74,6 +74,14 @@ func (a *App) StartBreakNow() (RuntimeState, error) {
 	return a.decorateRuntimeState(runtimeState), nil
 }
 
+func (a *App) StartCustomBreak(breakSec int) (RuntimeState, error) {
+	runtimeState, err := a.engine.StartCustomBreakNow(time.Now(), breakSec)
+	if err != nil {
+		return RuntimeState{}, err
+	}
+	return a.decorateRuntimeState(runtimeState), nil
+}
+
 func (a *App) StartBreakNowForReason(reminderID int64) (RuntimeState, error) {
 	if reminderID < 0 {
 		return RuntimeState{}, errors.New("reminder id is invalid")

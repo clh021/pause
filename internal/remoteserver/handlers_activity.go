@@ -8,15 +8,17 @@ import (
 	"time"
 )
 
+const activityMaxWindowSec = 48 * 60 * 60
+
 func (s *Server) handleGetActivity(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
 
-	// Default: last 24 hours
+	// Default: last 48 hours
 	to := time.Now().Unix()
-	from := to - 86400
+	from := to - activityMaxWindowSec + 60
 
 	if f := r.URL.Query().Get("from"); f != "" {
 		if v, err := strconv.ParseInt(f, 10, 64); err == nil {
@@ -28,11 +30,17 @@ func (s *Server) handleGetActivity(w http.ResponseWriter, r *http.Request) {
 			to = v
 		}
 	}
+	if to < from {
+		from, to = to, from
+	}
+	if to-from > activityMaxWindowSec {
+		from = to - activityMaxWindowSec + 60
+	}
 
 	if s.activity == nil {
 		writeJSON(w, http.StatusOK, ActivitySummary{
-			Ticks: []ActivityRecord{},
-			Shots: []ShotInfo{},
+			SampleSec: int(activityPollInterval / time.Second),
+			Minutes:   []ActivityMinute{},
 		})
 		return
 	}

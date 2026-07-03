@@ -25,8 +25,10 @@ type fakeEngine struct {
 	resumeState       state.RuntimeState
 	skipState         state.RuntimeState
 	startState        state.RuntimeState
+	startCustomState  state.RuntimeState
 	skipErr           error
 	startErr          error
+	startCustomErr    error
 	pauseReminderErr  error
 	resumeReminderErr error
 }
@@ -51,6 +53,9 @@ func (f *fakeEngine) PostponeCurrentBreak(time.Time) (state.RuntimeState, error)
 }
 func (f *fakeEngine) StartBreakNow(time.Time) (state.RuntimeState, error) {
 	return f.startState, f.startErr
+}
+func (f *fakeEngine) StartCustomBreakNow(time.Time, int) (state.RuntimeState, error) {
+	return f.startCustomState, f.startCustomErr
 }
 func (f *fakeEngine) StartBreakNowForReason(int64, time.Time) (state.RuntimeState, error) {
 	return state.RuntimeState{}, nil

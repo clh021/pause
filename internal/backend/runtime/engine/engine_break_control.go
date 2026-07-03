@@ -6,6 +6,7 @@ import (
 
 	"pause/internal/backend/domain/reminder"
 	"pause/internal/backend/runtime/session"
+	"pause/internal/backend/runtime/scheduler"
 	"pause/internal/backend/runtime/state"
 	"pause/internal/logx"
 )
@@ -116,6 +117,39 @@ func (e *Engine) PostponeCurrentBreak(now time.Time) (state.RuntimeState, error)
 
 func (e *Engine) StartBreakNow(now time.Time) (state.RuntimeState, error) {
 	return e.StartBreakNowForReason(0, now)
+}
+
+func (e *Engine) StartCustomBreakNow(now time.Time, breakSec int) (state.RuntimeState, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if breakSec <= 0 {
+		return state.RuntimeState{}, errors.New("break duration must be > 0")
+	}
+	if e.session.IsActive() {
+		return state.RuntimeState{}, errors.New("break already active")
+	}
+
+	settings := e.store.Get()
+	evt := &scheduler.Event{
+		Reasons:  nil,
+		BreakSec: breakSec,
+	}
+
+	// A user-triggered custom break should count as an actual rest and avoid
+	// immediately firing the next scheduled rest reminder afterward.
+	resetRestReminderProgress(e.scheduler, e.effectiveReminderConfigsLocked(e.reminders))
+	e.lastTick = now
+	e.tickRemainder = 0
+
+	e.session.StartBreak(now, evt, settings.Enforcement.OverlaySkipAllowed)
+	e.recordBreakStartedLocked(now, "manual_custom", evt)
+	logx.Infof(
+		"break.started source=manual_custom break_sec=%d skip_allowed=%t",
+		evt.BreakSec,
+		settings.Enforcement.OverlaySkipAllowed,
+	)
+	return e.runtimeStateLocked(now, settings), nil
 }
 
 func (e *Engine) StartBreakNowForReason(reason int64, now time.Time) (state.RuntimeState, error) {

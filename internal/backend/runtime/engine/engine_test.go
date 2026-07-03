@@ -178,6 +178,20 @@ func TestEngine_StartBreakNowRejectedWhenGlobalDisabled(t *testing.T) {
 	}
 }
 
+func TestEngine_StartCustomBreakNowAllowsExplicitBreakWhenGlobalDisabled(t *testing.T) {
+	eng := testEngine(t)
+	now := time.Unix(1_700_000_000, 0)
+	_ = eng.Pause(now)
+
+	rs, err := eng.StartCustomBreakNow(now.Add(time.Second), 300)
+	if err != nil {
+		t.Fatalf("StartCustomBreakNow() err=%v", err)
+	}
+	if rs.CurrentSession == nil || rs.CurrentSession.RemainingSec != 300 {
+		t.Fatalf("expected custom 5 minute break, got %+v", rs.CurrentSession)
+	}
+}
+
 func TestEngine_GlobalEnabledDetachedFromSettingsStore(t *testing.T) {
 	eng := testEngine(t)
 	now := time.Unix(1_700_000_000, 0)

@@ -22,6 +22,11 @@ type triggerBreakRequest struct {
 	BreakSec int    `json:"breakSec"`
 }
 
+type forceBreakRequest struct {
+	Minutes  int `json:"minutes"`
+	BreakSec int `json:"breakSec"`
+}
+
 type statusReminder struct {
 	ID      int64  `json:"id"`
 	Name    string `json:"name,omitempty"`
@@ -134,6 +139,11 @@ func (s *Server) handleScreenshot(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
+	if dir := s.screenshotDir(); dir != "" {
+		if _, err := writeMinuteShot(dir, result.PNG, s.now()); err != nil {
+			logx.Warnf("remote.screenshot.minute_shot_err err=%v", err)
+		}
+	}
 
 	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
@@ -207,12 +217,39 @@ func (s *Server) handleForceBreak(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	state, err := s.services.Engine.StartBreakNow(s.now())
+
+	req := forceBreakRequest{}
+	if err := decodeJSONBody(r, &req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	breakSec := req.BreakSec
+	if breakSec <= 0 && req.Minutes > 0 {
+		breakSec = req.Minutes * 60
+	}
+
+	var (
+		resp RuntimeState
+		err  error
+	)
+	if breakSec > 0 {
+		var runtimeState state.RuntimeState
+		runtimeState, err = s.services.Engine.StartCustomBreakNow(s.now(), breakSec)
+		if err == nil {
+			resp = runtimeStateToDTO(runtimeState, s.currentSettings(r.Context()))
+		}
+	} else {
+		var runtimeState state.RuntimeState
+		runtimeState, err = s.services.Engine.StartBreakNow(s.now())
+		if err == nil {
+			resp = runtimeStateToDTO(runtimeState, s.currentSettings(r.Context()))
+		}
+	}
 	if err != nil {
 		writeServerError(w, err)
 		return
 	}
-	s.writeRuntimeState(w, http.StatusOK, state, r.Context())
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) handleQuit(w http.ResponseWriter, r *http.Request) {

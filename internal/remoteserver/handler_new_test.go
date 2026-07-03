@@ -54,6 +54,35 @@ func TestHandleForceBreak_Success(t *testing.T) {
 	}
 }
 
+func TestHandleForceBreak_WithMinutesUsesCustomBreak(t *testing.T) {
+	engine := &fakeEngine{
+		startCustomState: state.RuntimeState{
+			GlobalEnabled: true,
+			CurrentSession: &state.BreakSessionView{
+				Status:       "resting",
+				RemainingSec: 300,
+			},
+		},
+	}
+	server := newTestServer(t, engine)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/force-break", bytes.NewBufferString(`{"minutes":5}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp RuntimeState
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("json unmarshal: %v", err)
+	}
+	if resp.CurrentSession == nil || resp.CurrentSession.RemainingSec != 300 {
+		t.Fatalf("expected 5 minute custom break, got %+v", resp.CurrentSession)
+	}
+}
+
 func TestHandleForceBreak_EngineError(t *testing.T) {
 	engine := &fakeEngine{startErr: fmt.Errorf("break already active")}
 	server := newTestServer(t, engine)
@@ -133,19 +162,25 @@ func TestActivityRecorder_TickAndGetActivity(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		engine.rt = state.RuntimeState{LastTickActive: i%2 == 0, CurrentIdleSec: i * 10}
 		iCopy := i
-		rec.nowFn = func() time.Time { return now.Add(time.Duration(iCopy) * 10 * time.Second) }
+		rec.nowFn = func() time.Time { return now.Add(time.Duration(iCopy) * 20 * time.Second) }
 		rec.Tick(context.Background())
 	}
 	rec.flushNow()
 
 	from := now.Add(-10 * time.Second).Unix()
-	to := now.Add(40 * time.Second).Unix()
+	to := now.Add(70 * time.Second).Unix()
 	summary, err := rec.GetActivity(context.Background(), from, to)
 	if err != nil {
 		t.Fatalf("GetActivity err=%v", err)
 	}
-	if summary.TotalTicks != 3 {
-		t.Fatalf("expected 3 ticks, got %d", summary.TotalTicks)
+	if summary.SampleSec != 20 {
+		t.Fatalf("expected sampleSec 20, got %d", summary.SampleSec)
+	}
+	if summary.TotalMinutes < 2 {
+		t.Fatalf("expected at least 2 minutes, got %d", summary.TotalMinutes)
+	}
+	if summary.ActiveMinutes == 0 {
+		t.Fatal("expected active minutes to be aggregated")
 	}
 }
 
@@ -156,9 +191,7 @@ func TestActivityRecorder_AutoScreenshotOnActivity(t *testing.T) {
 	defer func() { testScreenshotDir = origScreenshotDir }()
 
 	// Use current time so filename timestamps match query range
-	now := time.Now()
-	// Round to second for predictable comparison
-	now = now.Truncate(time.Second)
+	now := time.Now().Truncate(time.Minute)
 
 	// Create a valid PNG
 	img := image.NewRGBA(image.Rect(0, 0, 10, 10))
@@ -188,9 +221,42 @@ func TestActivityRecorder_AutoScreenshotOnActivity(t *testing.T) {
 	rec.Tick(context.Background())
 	rec.flushNow()
 
-	shots := listShotsInDir(dir, now.Add(-10).Unix(), now.Add(10).Unix())
+	shots := listShotsInDir(dir, now.Unix(), now.Add(time.Minute).Unix())
 	if len(shots) == 0 {
 		t.Fatal("expected at least 1 shot, got 0")
+	}
+}
+
+func TestActivityRecorder_AutoScreenshotRepeatsEveryThreeActiveMinutes(t *testing.T) {
+	dir := t.TempDir()
+	origScreenshotDir := testScreenshotDir
+	testScreenshotDir = func() string { return dir }
+	defer func() { testScreenshotDir = origScreenshotDir }()
+
+	img := image.NewRGBA(image.Rect(0, 0, 4, 4))
+	var pngBuf bytes.Buffer
+	if err := png.Encode(&pngBuf, img); err != nil {
+		t.Fatalf("png encode: %v", err)
+	}
+
+	svc := &ScreenshotService{capturer: fakeScreenshotCapturer{png: pngBuf.Bytes()}, dir: dir, now: time.Now}
+	engine := &fakeRuntimeEngine{rt: state.RuntimeState{LastTickActive: true, CurrentIdleSec: 0}}
+	rec, err := NewActivityRecorder(engine, svc, true)
+	if err != nil {
+		t.Fatalf("NewActivityRecorder err=%v", err)
+	}
+	defer rec.Close()
+
+	base := time.Date(2026, 7, 1, 10, 0, 0, 0, time.Local)
+	for minute := 0; minute < 4; minute++ {
+		current := base.Add(time.Duration(minute) * time.Minute)
+		rec.nowFn = func() time.Time { return current }
+		rec.Tick(context.Background())
+	}
+
+	shots := listShotsInDir(dir, base.Unix(), base.Add(4*time.Minute).Unix())
+	if len(shots) != 2 {
+		t.Fatalf("expected shots for minute 1 and 4, got %d", len(shots))
 	}
 }
 
@@ -249,8 +315,11 @@ func TestHandleGetActivity_WithoutRecorder(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &summary); err != nil {
 		t.Fatalf("json unmarshal: %v", err)
 	}
-	if summary.TotalTicks != 0 {
-		t.Fatalf("expected 0 ticks, got %d", summary.TotalTicks)
+	if summary.SampleSec != 20 {
+		t.Fatalf("expected sampleSec 20, got %d", summary.SampleSec)
+	}
+	if len(summary.Minutes) != 0 {
+		t.Fatalf("expected 0 minute buckets, got %d", len(summary.Minutes))
 	}
 }
 

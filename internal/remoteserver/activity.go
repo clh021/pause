@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	activityPollInterval  = 10 * time.Second
+	activityPollInterval  = 20 * time.Second
 	activityRetentionDays = 7
 )
 
@@ -28,15 +28,6 @@ type ActivityRecord struct {
 	IdleSec   int   `json:"i"` // current idle seconds at time of tick
 }
 
-// ActivitySummary is returned by the API.
-type ActivitySummary struct {
-	TotalTicks int              `json:"totalTicks"`
-	ActiveSec  int              `json:"activeSec"`
-	IdleSec    int              `json:"idleSec"`
-	Ticks      []ActivityRecord `json:"ticks"`
-	Shots      []ShotInfo       `json:"shots"` // screenshots captured in the time range
-}
-
 // ShotInfo describes a saved screenshot JPEG.
 type ShotInfo struct {
 	Timestamp int64  `json:"t"`
@@ -44,19 +35,40 @@ type ShotInfo struct {
 	Name      string `json:"name"`
 }
 
-// ActivityRecorder polls the engine every 10 seconds and logs active/idle state.
+type ActivityMinute struct {
+	MinuteStartSec int64  `json:"minuteStartSec"`
+	Active         bool   `json:"active"`
+	HasScreenshot  bool   `json:"hasScreenshot"`
+	ShotName       string `json:"shotName,omitempty"`
+}
+
+// ActivitySummary is returned by the API.
+type ActivitySummary struct {
+	FromSec       int64            `json:"fromSec"`
+	ToSec         int64            `json:"toSec"`
+	SampleSec     int              `json:"sampleSec"`
+	TotalMinutes  int              `json:"totalMinutes"`
+	ActiveMinutes int              `json:"activeMinutes"`
+	IdleMinutes   int              `json:"idleMinutes"`
+	Minutes       []ActivityMinute `json:"minutes"`
+}
+
+// ActivityRecorder polls the engine every 20 seconds and logs active/idle state.
 type ActivityRecorder struct {
 	engine        bootstrap.RuntimeEngine
 	dir           string
 	screenshotDir string
 
-	mu            sync.Mutex
-	prevActive    bool
-	buffer        []ActivityRecord
-	flushTicker   *time.Ticker
-	captureOnAct  bool
-	screenshotSvc *ScreenshotService
-	nowFn         func() time.Time
+	mu                 sync.Mutex
+	buffer             []ActivityRecord
+	flushTicker        *time.Ticker
+	captureOnAct       bool
+	screenshotSvc      *ScreenshotService
+	nowFn              func() time.Time
+	currentMinuteStart int64
+	currentMinuteSet   bool
+	currentMinuteAct   bool
+	activeMinuteStreak int
 }
 
 // NewActivityRecorder creates the recorder and starts the background flush loop.
@@ -85,45 +97,74 @@ func NewActivityRecorder(engine bootstrap.RuntimeEngine, screenshotSvc *Screensh
 	return r, nil
 }
 
-// Tick polls the engine and records one activity sample. Called every 10 s.
+// Tick polls the engine and records one activity sample. Called every 20 s.
 func (r *ActivityRecorder) Tick(ctx context.Context) {
-	st := r.engine.GetRuntimeState(r.nowFn())
+	now := r.nowFn()
+	st := r.engine.GetRuntimeState(now)
 	rec := ActivityRecord{
-		Timestamp: r.nowFn().Unix(),
+		Timestamp: now.Unix(),
 		Active:    st.LastTickActive,
 		IdleSec:   st.CurrentIdleSec,
 	}
 
 	r.mu.Lock()
 	r.buffer = append(r.buffer, rec)
-	wasIdle := !r.prevActive
-	isActive := st.LastTickActive
-	triggerScreenshot := isActive && wasIdle && r.captureOnAct && r.screenshotSvc != nil
-	r.prevActive = isActive
+	triggerScreenshotAt := r.nextAutoScreenshotMinuteLocked(rec)
+	captureEnabled := r.captureOnAct && r.screenshotSvc != nil
 	r.mu.Unlock()
 
-	if triggerScreenshot {
-		r.tryAutoScreenshot(ctx)
+	if captureEnabled && triggerScreenshotAt > 0 {
+		r.tryAutoScreenshot(ctx, time.Unix(triggerScreenshotAt, 0).In(now.Location()))
 	}
 }
 
-func (r *ActivityRecorder) tryAutoScreenshot(ctx context.Context) {
+func (r *ActivityRecorder) nextAutoScreenshotMinuteLocked(rec ActivityRecord) int64 {
+	minuteStart := rec.Timestamp - (rec.Timestamp % 60)
+	if !r.currentMinuteSet {
+		r.currentMinuteStart = minuteStart
+		r.currentMinuteSet = true
+		r.currentMinuteAct = false
+	}
+	if minuteStart != r.currentMinuteStart {
+		if !r.currentMinuteAct {
+			r.activeMinuteStreak = 0
+		}
+		r.currentMinuteStart = minuteStart
+		r.currentMinuteAct = false
+	}
+	if !rec.Active || r.currentMinuteAct {
+		return 0
+	}
+
+	r.currentMinuteAct = true
+	r.activeMinuteStreak++
+	if r.activeMinuteStreak == 1 || (r.activeMinuteStreak-1)%3 == 0 {
+		return minuteStart
+	}
+	return 0
+}
+
+func (r *ActivityRecorder) tryAutoScreenshot(ctx context.Context, minuteStart time.Time) {
 	result, err := r.screenshotSvc.Capture(ctx)
 	if err != nil {
 		logx.Warnf("activity.auto_screenshot_err err=%v", err)
 		return
 	}
-	jpgPath := filepath.Join(r.screenshotDir, screenshotJPEGName(r.nowFn()))
-	if err := compressPNGToJPEGFile(result.PNG, jpgPath, 55); err != nil {
+	if _, err := writeMinuteShot(r.screenshotDir, result.PNG, minuteStart); err != nil {
 		logx.Warnf("activity.auto_screenshot_compress_err err=%v", err)
 		return
 	}
 	_ = os.Remove(result.LatestPath) // we keep the JPEG, remove the full-quality PNG
-	logx.Infof("activity.auto_screenshot saved=%s", filepath.Base(jpgPath))
+	logx.Infof("activity.auto_screenshot saved=%s", screenshotJPEGName(minuteStart))
 }
 
-// GetActivity returns all records and screenshot paths for a time range.
+// GetActivity returns minute buckets and screenshot availability for a time range.
 func (r *ActivityRecorder) GetActivity(ctx context.Context, fromT, toT int64) (ActivitySummary, error) {
+	_ = ctx
+	if toT < fromT {
+		fromT, toT = toT, fromT
+	}
+
 	r.mu.Lock()
 	bufCopy := make([]ActivityRecord, len(r.buffer))
 	copy(bufCopy, r.buffer)
@@ -145,7 +186,6 @@ func (r *ActivityRecorder) GetActivity(ctx context.Context, fromT, toT int64) (A
 	}
 	all = append(all, bufCopy...)
 
-	// Filter & sort ticks
 	filtered := make([]ActivityRecord, 0, len(all))
 	for _, rec := range all {
 		if rec.Timestamp >= fromT && rec.Timestamp <= toT {
@@ -156,20 +196,46 @@ func (r *ActivityRecorder) GetActivity(ctx context.Context, fromT, toT int64) (A
 		return filtered[i].Timestamp < filtered[j].Timestamp
 	})
 
-	summary := ActivitySummary{
-		Ticks: filtered,
-	}
+	fromMinute := truncateUnixMinute(fromT)
+	toMinute := truncateUnixMinute(toT)
+	byMinute := make(map[int64]bool, len(filtered))
 	for _, rec := range filtered {
-		summary.TotalTicks++
 		if rec.Active {
-			summary.ActiveSec += 10
-		} else {
-			summary.IdleSec += 10
+			byMinute[truncateUnixMinute(rec.Timestamp)] = true
 		}
 	}
 
-	// Gather screenshot JPEGs in the time range
-	summary.Shots = r.listShots(fromT, toT)
+	shots := r.listShots(fromMinute, toMinute+59)
+	shotsByMinute := make(map[int64]ShotInfo, len(shots))
+	for _, shot := range shots {
+		shotsByMinute[truncateUnixMinute(shot.Timestamp)] = shot
+	}
+
+	minutes := make([]ActivityMinute, 0, int((toMinute-fromMinute)/60)+1)
+	summary := ActivitySummary{
+		FromSec:   fromMinute,
+		ToSec:     toMinute,
+		SampleSec: int(activityPollInterval / time.Second),
+	}
+	for minute := fromMinute; minute <= toMinute; minute += 60 {
+		bucket := ActivityMinute{
+			MinuteStartSec: minute,
+			Active:         byMinute[minute],
+		}
+		if shot, ok := shotsByMinute[minute]; ok {
+			bucket.HasScreenshot = true
+			bucket.ShotName = shot.Name
+			bucket.Active = true
+		}
+		if bucket.Active {
+			summary.ActiveMinutes++
+		} else {
+			summary.IdleMinutes++
+		}
+		minutes = append(minutes, bucket)
+	}
+	summary.TotalMinutes = len(minutes)
+	summary.Minutes = minutes
 	return summary, nil
 }
 
@@ -321,6 +387,10 @@ func activityFileName(now time.Time) string {
 	return fmt.Sprintf("activity-%s.jsonl", now.Format("2006-01-02"))
 }
 
+func truncateUnixMinute(ts int64) int64 {
+	return ts - (ts % 60)
+}
+
 func readActivityFile(path string) ([]ActivityRecord, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -387,7 +457,15 @@ func parseShotTimestamp(name string) int64 {
 }
 
 func screenshotJPEGName(now time.Time) string {
-	return fmt.Sprintf("shot-%s.jpg", now.Format("2006-01-02_150405"))
+	return fmt.Sprintf("shot-%s.jpg", now.Truncate(time.Minute).Format("2006-01-02_150405"))
+}
+
+func writeMinuteShot(dir string, pngData []byte, minuteStart time.Time) (string, error) {
+	jpgPath := filepath.Join(dir, screenshotJPEGName(minuteStart))
+	if err := compressPNGToJPEGFile(pngData, jpgPath, 55); err != nil {
+		return "", err
+	}
+	return jpgPath, nil
 }
 
 // compressPNGToJPEGFile decodes PNG bytes and re-encodes as JPEG at the given quality (1-100).

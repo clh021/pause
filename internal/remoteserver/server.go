@@ -110,7 +110,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) activityPollLoop(ctx context.Context) {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(activityPollInterval)
 	defer ticker.Stop()
 	for {
 		select {

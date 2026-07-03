@@ -28,6 +28,7 @@ type RuntimeEngine interface {
 	SkipCurrentBreak(now time.Time, mode SkipMode) (state.RuntimeState, error)
 	PostponeCurrentBreak(now time.Time) (state.RuntimeState, error)
 	StartBreakNow(now time.Time) (state.RuntimeState, error)
+	StartCustomBreakNow(now time.Time, breakSec int) (state.RuntimeState, error)
 	StartBreakNowForReason(reason int64, now time.Time) (state.RuntimeState, error)
 }
 
@@ -84,6 +85,10 @@ func (a *runtimeEngineAdapter) PostponeCurrentBreak(now time.Time) (state.Runtim
 
 func (a *runtimeEngineAdapter) StartBreakNow(now time.Time) (state.RuntimeState, error) {
 	return a.engine.StartBreakNow(now)
+}
+
+func (a *runtimeEngineAdapter) StartCustomBreakNow(now time.Time, breakSec int) (state.RuntimeState, error) {
+	return a.engine.StartCustomBreakNow(now, breakSec)
 }
 
 func (a *runtimeEngineAdapter) StartBreakNowForReason(reason int64, now time.Time) (state.RuntimeState, error) {
