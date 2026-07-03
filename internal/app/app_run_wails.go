@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"syscall"
 
+	"pause/internal/desktop"
 	"pause/internal/logx"
 	"pause/internal/meta"
 
@@ -49,8 +50,9 @@ func RunWails(configPath string, assets fs.FS) error {
 		MinWidth:  820,
 		MinHeight: 540,
 		// Keep native title bars on macOS/Linux, but use frameless window on Windows.
-		Frameless:   runtime.GOOS == "windows",
-		StartHidden: true,
+		Frameless: runtime.GOOS == "windows",
+		// Linux currently has no tray implementation, so the main window must stay visible.
+		StartHidden: desktop.SupportsBackgroundWindowing(),
 		// Keep this false and control close behavior in OnBeforeClose.
 		// Wails' native HideWindowOnClose hides the whole app on macOS,
 		// which can cause unexpected main-window re-show on status-item tooltip/activation flows.

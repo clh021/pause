@@ -175,6 +175,9 @@ else
   "${WAILS_CMD[@]}" "${WAILS_ARGS[@]}"
 fi
 
+# Wails -clean can remove build/bin (including the custom output dir), so ensure it exists again.
+mkdir -p "${LINUX_OUTPUT_DIR}"
+
 SOURCE_BINARY="${ROOT_DIR}/build/bin/${APP_NAME}"
 if [[ ! -f "${SOURCE_BINARY}" || ! "${SOURCE_BINARY}" -nt "${STAMP_FILE}" ]]; then
   SOURCE_BINARY=""

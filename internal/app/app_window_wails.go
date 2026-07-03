@@ -12,6 +12,11 @@ func (a *App) CloseWindow() {
 	if a == nil {
 		return
 	}
+	if !desktop.SupportsBackgroundWindowing() {
+		logx.Infof("app.close_window action=quit reason=no_background_windowing")
+		a.Quit()
+		return
+	}
 	if a.ctx == nil {
 		logx.Warnf("app.close_window skipped reason=missing_context")
 		return

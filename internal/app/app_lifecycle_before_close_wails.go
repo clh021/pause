@@ -32,6 +32,11 @@ func (a *App) BeforeClose(ctx context.Context) (prevent bool) {
 		}
 	}
 
+	if !desktop.SupportsBackgroundWindowing() {
+		logx.Infof("window.before_close allow=true reason=no_background_windowing")
+		return false
+	}
+
 	desktop.HideMainWindowForClose(ctx)
 	logx.Infof("window.before_close prevent=true action=hide_main_window")
 	return true
