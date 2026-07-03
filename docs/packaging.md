@@ -204,7 +204,8 @@ Pause 当前只维护一个渠道：`stable`。
   - `workflow_dispatch`：可在 GitHub Actions 页面手动触发构建
 - 产出内容：
   - `pause-windows-x64`：Windows 安装包
-  - `pause-linux-x64`：Linux 便携包（`tar.gz`）
+  - `pause-linux-x64`：Linux 解包测试包（Actions artifact 下载后只有一层 zip）
+  - `pause-linux-x64-release`：Linux 正式发布包（`tar.gz`）
   - `pause-release-manifest`：`release-manifest.txt` + `SHA256SUMS` + `updates.json`
 - Pages：
   - tag 发版成功后自动部署 `updates/stable.json`

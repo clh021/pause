@@ -145,6 +145,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: pause-linux-x64
+          path: build/bundle/linux-x64/Pause-v${{ needs.validate.outputs.version }}-linux-x64/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Linux release archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: pause-linux-x64-release
           path: build/bin/linux-x64/*.tar.gz
           if-no-files-found: error
           retention-days: 14
@@ -168,7 +176,7 @@ jobs:
       - name: Download Linux artifacts
         uses: actions/download-artifact@v8
         with:
-          name: pause-linux-x64
+          name: pause-linux-x64-release
           path: build/bin/linux-x64
 
       - name: Generate release manifest and checksums
@@ -208,7 +216,7 @@ jobs:
       - name: Download Linux artifacts
         uses: actions/download-artifact@v8
         with:
-          name: pause-linux-x64
+          name: pause-linux-x64-release
           path: build/bin/linux-x64
 
       - name: Download release manifest

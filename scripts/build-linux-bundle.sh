@@ -8,6 +8,7 @@ APP_ICON_SOURCE="${APP_ICON_SOURCE:-${ROOT_DIR}/assets/branding/app-icon-1024.pn
 LINUX_PLATFORM="${LINUX_PLATFORM:-linux/amd64}"
 LINUX_ARCH_LABEL="${LINUX_ARCH_LABEL:-}"
 LINUX_OUTPUT_DIR="${LINUX_OUTPUT_DIR:-}"
+LINUX_BUNDLE_OUTPUT_DIR="${LINUX_BUNDLE_OUTPUT_DIR:-}"
 APP_VERSION_OVERRIDE="${APP_VERSION_OVERRIDE:-}"
 WAILS_TAGS="${WAILS_TAGS:-wails}"
 USE_CLEAN="${USE_CLEAN:-0}"
@@ -32,6 +33,7 @@ Options:
 
 Environment variables:
   APP_ICON_SOURCE, LINUX_PLATFORM, LINUX_ARCH_LABEL, LINUX_OUTPUT_DIR,
+  LINUX_BUNDLE_OUTPUT_DIR,
   APP_VERSION_OVERRIDE, WAILS_TAGS, USE_CLEAN, VITE_UPDATES_URL
 EOF
 }
@@ -115,6 +117,9 @@ fi
 if [[ -z "${LINUX_OUTPUT_DIR}" ]]; then
   LINUX_OUTPUT_DIR="${ROOT_DIR}/build/bin/${LINUX_ARCH_LABEL}"
 fi
+if [[ -z "${LINUX_BUNDLE_OUTPUT_DIR}" ]]; then
+  LINUX_BUNDLE_OUTPUT_DIR="${ROOT_DIR}/build/bundle/${LINUX_ARCH_LABEL}"
+fi
 
 cd "${ROOT_DIR}"
 
@@ -123,6 +128,7 @@ echo "  app_name=${APP_NAME}"
 echo "  linux_platform=${LINUX_PLATFORM}"
 echo "  linux_arch_label=${LINUX_ARCH_LABEL}"
 echo "  linux_output_dir=${LINUX_OUTPUT_DIR}"
+echo "  linux_bundle_output_dir=${LINUX_BUNDLE_OUTPUT_DIR}"
 echo "  artifact_version=${ARTIFACT_VERSION}"
 echo "  app_icon_source=${APP_ICON_SOURCE}"
 echo "  wails_tags=${WAILS_TAGS}"
@@ -135,6 +141,7 @@ fi
 
 mkdir -p "${ROOT_DIR}/build/bin"
 mkdir -p "${LINUX_OUTPUT_DIR}"
+mkdir -p "${LINUX_BUNDLE_OUTPUT_DIR}"
 
 # Copy frontend dist into embed directory so the binary includes the web UI.
 if [[ -d "${ROOT_DIR}/frontend/dist" ]] && [[ -f "${ROOT_DIR}/frontend/dist/index.html" ]]; then
@@ -207,10 +214,12 @@ fi
 
 BUNDLE_NAME="${APP_NAME}-v${ARTIFACT_VERSION}-${LINUX_ARCH_LABEL}"
 STAGING_DIR="${STAGING_ROOT}/${BUNDLE_NAME}"
+BUNDLE_OUTPUT_PATH="${LINUX_BUNDLE_OUTPUT_DIR}/${BUNDLE_NAME}"
 ARCHIVE_PATH="${LINUX_OUTPUT_DIR}/${BUNDLE_NAME}.tar.gz"
 
 echo "[2/3] Preparing portable bundle in ${STAGING_DIR}"
 rm -rf "${LINUX_OUTPUT_DIR:?}/${BUNDLE_NAME}"
+rm -rf "${BUNDLE_OUTPUT_PATH}"
 mkdir -p "${STAGING_DIR}"
 
 cp "${SOURCE_BINARY}" "${STAGING_DIR}/${APP_NAME}"
@@ -252,6 +261,8 @@ Desktop launcher
 - If you copy `Pause.desktop` somewhere else, edit its `Exec=` and `Icon=` entries to absolute paths first.
 EOF
 
+cp -R "${STAGING_DIR}" "${BUNDLE_OUTPUT_PATH}"
+
 echo "[3/3] Creating archive ${ARCHIVE_PATH}"
 rm -f "${ARCHIVE_PATH}"
 tar -C "${STAGING_ROOT}" -czf "${ARCHIVE_PATH}" "${BUNDLE_NAME}"
@@ -263,3 +274,4 @@ fi
 
 echo "Done. Linux artifacts:"
 echo "  ${LINUX_OUTPUT_DIR}"
+echo "  ${LINUX_BUNDLE_OUTPUT_DIR}"
