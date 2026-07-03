@@ -45,7 +45,7 @@ func (s *Server) handleUpdateReminder(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	idStr := r.PathValue("id")
+	idStr := suffixPathValue(r.URL.Path, "/api/reminders/update/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, "invalid reminder id")
@@ -71,7 +71,7 @@ func (s *Server) handleDeleteReminder(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	idStr := r.PathValue("id")
+	idStr := suffixPathValue(r.URL.Path, "/api/reminders/delete/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, "invalid reminder id")
@@ -91,7 +91,7 @@ func (s *Server) handlePauseReminder(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	idStr := r.PathValue("id")
+	idStr := suffixPathValue(r.URL.Path, "/api/reminders/pause/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, "invalid reminder id")
@@ -111,7 +111,7 @@ func (s *Server) handleResumeReminder(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	idStr := r.PathValue("id")
+	idStr := suffixPathValue(r.URL.Path, "/api/reminders/resume/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, "invalid reminder id")

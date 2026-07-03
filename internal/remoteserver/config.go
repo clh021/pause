@@ -3,6 +3,7 @@ package remoteserver
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -75,4 +76,22 @@ func (c Config) Normalize() Config {
 		c.TriggerCooldownSec = defaultTriggerCooldownSec
 	}
 	return c
+}
+
+// Validate rejects insecure or inconsistent configurations.
+func (c Config) Validate() error {
+	c = c.Normalize()
+	if !c.Enabled {
+		return nil
+	}
+	if c.Token == "" {
+		return errors.New("remote server token is required when enabled")
+	}
+	return nil
+}
+
+// LocalBaseURL returns the loopback URL for same-machine access.
+func (c Config) LocalBaseURL() string {
+	c = c.Normalize()
+	return fmt.Sprintf("http://127.0.0.1:%d", c.Port)
 }

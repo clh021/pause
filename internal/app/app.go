@@ -51,6 +51,7 @@ func NewApp(configPath string) (*App, error) {
 		notifier:               runtime.Notifier,
 		notificationCapability: runtime.NotificationCapabilityProvider,
 		desktop:                newDesktopController(),
+		remoteServerConfig:     remoteserver.DefaultConfig(),
 	}, nil
 }
 
@@ -106,9 +107,13 @@ func (a *App) Shutdown(_ context.Context) {
 func (a *App) startRemoteServer(ctx context.Context) error {
 	cfg, err := remoteserver.LoadConfig()
 	if err != nil {
+		a.remoteServerLastErr = err.Error()
 		return err
 	}
+	a.remoteServerConfig = cfg
+	a.remoteServerLastErr = ""
 	if !cfg.Enabled {
+		a.remoteServer = nil
 		return nil
 	}
 	server, err := remoteserver.NewServer(cfg, remoteserver.Services{
@@ -117,13 +122,19 @@ func (a *App) startRemoteServer(ctx context.Context) error {
 		AnalyticsService:               a.analytics,
 		SettingsService:                a.settingsSvc,
 		NotificationCapabilityProvider: a.notificationCapability,
+		Quit:                           a.Quit,
 	}, a.desktop.PrepareForScreenshot)
 	if err != nil {
+		a.remoteServer = nil
+		a.remoteServerLastErr = err.Error()
 		return err
 	}
 	if err := server.Start(ctx); err != nil {
+		a.remoteServer = nil
+		a.remoteServerLastErr = err.Error()
 		return err
 	}
 	a.remoteServer = server
+	a.remoteServerLastErr = ""
 	return nil
 }

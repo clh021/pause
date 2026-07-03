@@ -43,6 +43,28 @@ https://github.com/user-attachments/assets/3ac20ceb-b286-4bf2-ad21-6a534e1dcf9a
 - [打包、发版与更新源](./docs/packaging.md)
 - [通知能力与前端策略](./docs/notification-logic.md)
 
+## 远程控制
+
+远程控制服务读取配置文件 `remote_server.json`。服务启用时必须配置 `token`，否则不会启动。
+
+示例：
+
+```json
+{
+  "enabled": true,
+  "bindAddress": "0.0.0.0",
+  "port": 18680,
+  "token": "replace-with-a-long-random-token",
+  "triggerCooldownSec": 60
+}
+```
+
+说明：
+
+- 浏览器访问远程页面时，需要先输入 `token` 建立会话。
+- `0.0.0.0` 绑定被保留，但敏感接口必须通过 token 验证。
+- 桌面端内嵌前端会自动使用本机回环地址访问远程控制接口。
+
 ## 开发环境
 
 - Go `1.24+`

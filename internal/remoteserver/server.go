@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,6 +44,9 @@ func NewServer(cfg Config, services Services, beforeScreenshot PrepareScreenshot
 		return nil, err
 	}
 	cfg = cfg.Normalize()
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
 
 	server := &Server{
 		cfg:              cfg,
@@ -128,50 +132,75 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 func (s *Server) routes() http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/screenshot", s.handleScreenshot)
-	mux.HandleFunc("/shots/{name}", s.handleServeShot)
-	mux.HandleFunc("/api/status", s.handleStatus)
-	mux.HandleFunc("/api/trigger-break", s.handleTriggerBreak)
-	mux.HandleFunc("/api/skip-break", s.handleSkipBreak)
-	mux.HandleFunc("/api/pause", s.handlePause)
-	mux.HandleFunc("/api/resume", s.handleResume)
-	mux.HandleFunc("/api/reminders", s.handleListReminders)
-	mux.HandleFunc("/api/reminders/create", s.handleCreateReminder)
-	mux.HandleFunc("/api/reminders/update/{id}", s.handleUpdateReminder)
-	mux.HandleFunc("/api/reminders/delete/{id}", s.handleDeleteReminder)
-	mux.HandleFunc("/api/reminders/pause/{id}", s.handlePauseReminder)
-	mux.HandleFunc("/api/reminders/resume/{id}", s.handleResumeReminder)
-	mux.HandleFunc("/api/settings", s.handleGetSettings)
-	mux.HandleFunc("/api/settings/update", s.handleUpdateSettings)
-	mux.HandleFunc("/api/settings/launch-at-login", s.handleGetLaunchAtLogin)
-	mux.HandleFunc("/api/settings/launch-at-login/set", s.handleSetLaunchAtLogin)
-	mux.HandleFunc("/api/settings/auto-screenshot", s.handleAutoScreenshotSetting)
-	mux.HandleFunc("/api/analytics/weekly", s.handleWeeklyStats)
-	mux.HandleFunc("/api/analytics/summary", s.handleAnalyticsSummary)
-	mux.HandleFunc("/api/analytics/trend", s.handleAnalyticsTrend)
-	mux.HandleFunc("/api/analytics/distribution", s.handleBreakTypeDistribution)
-	mux.HandleFunc("/api/notification/capability", s.handleNotificationCapability)
-	mux.HandleFunc("/api/notification/request", s.handleRequestNotificationPermission)
-	mux.HandleFunc("/api/notification/open-settings", s.handleOpenNotificationSettings)
-	mux.HandleFunc("/api/force-unlock", s.handleForceUnlock)
-	mux.HandleFunc("/api/force-break", s.handleForceBreak)
-	mux.HandleFunc("/api/quit", s.handleQuit)
-	mux.HandleFunc("/api/runtime", s.handleRuntimeState)
-	mux.HandleFunc("/api/activity", s.handleGetActivity)
-	mux.HandleFunc("/api/screenshots", s.handleScreenshotList)
-	if s.staticFileServer != nil {
-		mux.Handle("/", s.staticFileServer)
-	}
+	protected := http.NewServeMux()
+	protected.HandleFunc("/screenshot", s.handleScreenshot)
+	protected.HandleFunc("/api/status", s.handleStatus)
+	protected.HandleFunc("/api/trigger-break", s.handleTriggerBreak)
+	protected.HandleFunc("/api/skip-break", s.handleSkipBreak)
+	protected.HandleFunc("/api/pause", s.handlePause)
+	protected.HandleFunc("/api/resume", s.handleResume)
+	protected.HandleFunc("/api/reminders", s.handleListReminders)
+	protected.HandleFunc("/api/reminders/create", s.handleCreateReminder)
+	protected.HandleFunc("/api/reminders/update/", s.handleUpdateReminder)
+	protected.HandleFunc("/api/reminders/delete/", s.handleDeleteReminder)
+	protected.HandleFunc("/api/reminders/pause/", s.handlePauseReminder)
+	protected.HandleFunc("/api/reminders/resume/", s.handleResumeReminder)
+	protected.HandleFunc("/api/settings", s.handleGetSettings)
+	protected.HandleFunc("/api/settings/update", s.handleUpdateSettings)
+	protected.HandleFunc("/api/settings/launch-at-login", s.handleGetLaunchAtLogin)
+	protected.HandleFunc("/api/settings/launch-at-login/set", s.handleSetLaunchAtLogin)
+	protected.HandleFunc("/api/settings/auto-screenshot", s.handleAutoScreenshotSetting)
+	protected.HandleFunc("/api/analytics/weekly", s.handleWeeklyStats)
+	protected.HandleFunc("/api/analytics/summary", s.handleAnalyticsSummary)
+	protected.HandleFunc("/api/analytics/trend", s.handleAnalyticsTrend)
+	protected.HandleFunc("/api/analytics/distribution", s.handleBreakTypeDistribution)
+	protected.HandleFunc("/api/notification/capability", s.handleNotificationCapability)
+	protected.HandleFunc("/api/notification/request", s.handleRequestNotificationPermission)
+	protected.HandleFunc("/api/notification/open-settings", s.handleOpenNotificationSettings)
+	protected.HandleFunc("/api/force-unlock", s.handleForceUnlock)
+	protected.HandleFunc("/api/force-break", s.handleForceBreak)
+	protected.HandleFunc("/api/quit", s.handleQuit)
+	protected.HandleFunc("/api/runtime", s.handleRuntimeState)
+	protected.HandleFunc("/api/activity", s.handleGetActivity)
+	protected.HandleFunc("/api/screenshots", s.handleScreenshotList)
+	protectedHandler := s.withCORS(s.requireAuth(protected))
 
-	return s.withCORS(s.requireAuth(mux))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/auth/session":
+			s.withCORS(http.HandlerFunc(s.handleAuthSession)).ServeHTTP(w, r)
+		case r.URL.Path == "/screenshot":
+			protectedHandler.ServeHTTP(w, r)
+		case strings.HasPrefix(r.URL.Path, "/shots/"):
+			s.withCORS(s.requireAuth(http.HandlerFunc(s.handleServeShot))).ServeHTTP(w, r)
+		case strings.HasPrefix(r.URL.Path, "/api/"):
+			protectedHandler.ServeHTTP(w, r)
+		case s.staticFileServer != nil:
+			s.staticFileServer.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
 }
 
 func (s *Server) withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		origin := strings.TrimSpace(r.Header.Get("Origin"))
+		allowedOrigin := s.allowedOrigin(origin, r.Host)
+		if origin != "" && allowedOrigin == "" {
+			if r.Method == http.MethodOptions {
+				writeJSONError(w, http.StatusForbidden, "origin not allowed")
+				return
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
+		if allowedOrigin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+			w.Header().Set("Vary", "Origin")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		}
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -180,12 +209,27 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 	})
 }
 
+func (s *Server) allowedOrigin(origin string, host string) string {
+	if origin == "" || host == "" {
+		return ""
+	}
+	if origin == "http://"+host || origin == "https://"+host {
+		return origin
+	}
+	switch origin {
+	case "http://wails.localhost", "https://wails.localhost", "wails://wails":
+		return origin
+	}
+	return ""
+}
+
 // testActivityDir is overridable in tests.
 var testActivityDir = defaultActivityDir
 
 func defaultActivityDir() string {
 	return filepath.Join(homeDir(), ".pause", "activity")
 }
+
 var testScreenshotDir = defaultScreenshotDir
 
 func (s *Server) screenshotDir() string {

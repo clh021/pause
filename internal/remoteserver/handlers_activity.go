@@ -81,7 +81,7 @@ func (s *Server) handleServeShot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := r.PathValue("name")
+	name := suffixPathValue(r.URL.Path, "/shots/")
 	if name == "" {
 		writeJSONError(w, http.StatusBadRequest, "missing shot name")
 		return

@@ -3,10 +3,10 @@ package remoteserver
 import (
 	"context"
 
+	"pause/internal/backend/bootstrap"
 	analyticsdomain "pause/internal/backend/domain/analytics"
 	reminderdomain "pause/internal/backend/domain/reminder"
 	settingsdomain "pause/internal/backend/domain/settings"
-	"pause/internal/backend/bootstrap"
 	"pause/internal/backend/ports"
 )
 
@@ -17,6 +17,7 @@ type Services struct {
 	AnalyticsService               AnalyticsService
 	SettingsService                SettingsService
 	NotificationCapabilityProvider ports.NotificationCapabilityProvider
+	Quit                           func()
 }
 
 // --- Reminder DTOs ---
@@ -104,8 +105,8 @@ type UISettingsPatch struct {
 // --- Analytics DTOs ---
 
 type AnalyticsWeeklyStats struct {
-	FromSec   int64                  `json:"fromSec"`
-	ToSec     int64                  `json:"toSec"`
+	FromSec   int64                   `json:"fromSec"`
+	ToSec     int64                   `json:"toSec"`
 	Reminders []AnalyticsReminderStat `json:"reminders"`
 	Summary   AnalyticsSummaryStats   `json:"summary"`
 }
@@ -143,8 +144,8 @@ type AnalyticsSummary struct {
 }
 
 type AnalyticsTrend struct {
-	FromSec int64                `json:"fromSec"`
-	ToSec   int64                `json:"toSec"`
+	FromSec int64                 `json:"fromSec"`
+	ToSec   int64                 `json:"toSec"`
 	Points  []AnalyticsTrendPoint `json:"points"`
 }
 
@@ -160,9 +161,9 @@ type AnalyticsTrendPoint struct {
 }
 
 type AnalyticsBreakTypeDistribution struct {
-	FromSec        int64                             `json:"fromSec"`
-	ToSec          int64                             `json:"toSec"`
-	TotalTriggered int                               `json:"totalTriggered"`
+	FromSec        int64                                `json:"fromSec"`
+	ToSec          int64                                `json:"toSec"`
+	TotalTriggered int                                  `json:"totalTriggered"`
 	Items          []AnalyticsBreakTypeDistributionItem `json:"items"`
 }
 

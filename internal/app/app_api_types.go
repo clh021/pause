@@ -130,6 +130,15 @@ type PlatformInfo struct {
 	Arch string `json:"arch"`
 }
 
+type RemoteServerInfo struct {
+	Enabled       bool   `json:"enabled"`
+	Running       bool   `json:"running"`
+	LocalBaseURL  string `json:"localBaseUrl"`
+	AccessToken   string `json:"accessToken,omitempty"`
+	TokenRequired bool   `json:"tokenRequired"`
+	LastError     string `json:"lastError,omitempty"`
+}
+
 type AnalyticsReminderStat struct {
 	ReminderID          int64   `json:"reminderId"`
 	ReminderName        string  `json:"reminderName"`

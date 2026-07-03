@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"pause/internal/backend/bootstrap"
 	analyticsdomain "pause/internal/backend/domain/analytics"
 	reminderdomain "pause/internal/backend/domain/reminder"
 	settingsdomain "pause/internal/backend/domain/settings"
-	"pause/internal/backend/bootstrap"
 	"pause/internal/backend/ports"
 	"pause/internal/backend/runtime/state"
 )
@@ -114,6 +114,40 @@ func TestAuthMiddlewareRejectsMissingToken(t *testing.T) {
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestHandleAuthSessionSetsCookie(t *testing.T) {
+	server := newTestServer(t, &fakeEngine{})
+	server.cfg.Token = "secret"
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/session", bytes.NewBufferString(`{"token":"secret"}`))
+	rec := httptest.NewRecorder()
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	cookies := rec.Result().Cookies()
+	if len(cookies) == 0 || cookies[0].Name != remoteAuthCookieName {
+		t.Fatalf("expected auth cookie, got %+v", cookies)
+	}
+}
+
+func TestWithCORSAllowsWailsOrigin(t *testing.T) {
+	server := newTestServer(t, &fakeEngine{})
+	server.cfg.Token = "secret"
+
+	req := httptest.NewRequest(http.MethodOptions, "/api/runtime", nil)
+	req.Header.Set("Origin", "http://wails.localhost")
+	rec := httptest.NewRecorder()
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "http://wails.localhost" {
+		t.Fatalf("expected Wails origin to be allowed, got %q", got)
 	}
 }
 
@@ -969,10 +1003,10 @@ func TestHandleMethodNotAllowed_AllEndpoints(t *testing.T) {
 	handler := server.routes()
 
 	tests := []struct {
-		name     string
-		method   string
-		path     string
-		body     string
+		name   string
+		method string
+		path   string
+		body   string
 	}{
 		{"/api/status with wrong method", http.MethodPost, "/api/status", ""},
 		{"/api/pause with wrong method", http.MethodGet, "/api/pause", ""},

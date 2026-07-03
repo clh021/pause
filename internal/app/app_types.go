@@ -9,6 +9,7 @@ import (
 	reminderdomain "pause/internal/backend/domain/reminder"
 	"pause/internal/backend/domain/settings"
 	"pause/internal/backend/ports"
+	"pause/internal/remoteserver"
 )
 
 type App struct {
@@ -22,6 +23,8 @@ type App struct {
 	notificationCapability ports.NotificationCapabilityProvider
 	desktop                desktopController
 	remoteServer           remoteServer
+	remoteServerConfig     remoteserver.Config
+	remoteServerLastErr    string
 	quitRequested          atomic.Bool
 }
 

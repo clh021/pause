@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	settingsdomain "pause/internal/backend/domain/settings"
 	"pause/internal/backend/bootstrap"
+	settingsdomain "pause/internal/backend/domain/settings"
 	"pause/internal/backend/runtime/state"
 )
 
@@ -107,9 +107,11 @@ type fakeRuntimeEngine struct {
 }
 
 func (f *fakeRuntimeEngine) GetRuntimeState(time.Time) state.RuntimeState { return f.rt }
-func (f *fakeRuntimeEngine) GetSettings() settingsdomain.Settings         { return settingsdomain.DefaultSettings() }
-func (f *fakeRuntimeEngine) Start(context.Context)                        {}
-func (f *fakeRuntimeEngine) Stop()                                        {}
+func (f *fakeRuntimeEngine) GetSettings() settingsdomain.Settings {
+	return settingsdomain.DefaultSettings()
+}
+func (f *fakeRuntimeEngine) Start(context.Context) {}
+func (f *fakeRuntimeEngine) Stop()                 {}
 
 func TestActivityRecorder_TickAndGetActivity(t *testing.T) {
 	dir := t.TempDir()

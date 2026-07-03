@@ -43,3 +43,14 @@ func TestLoadConfigFileNormalizesValues(t *testing.T) {
 		t.Fatalf("expected cooldown %d, got %d", defaultTriggerCooldownSec, cfg.TriggerCooldownSec)
 	}
 }
+
+func TestConfigValidateRequiresTokenWhenEnabled(t *testing.T) {
+	cfg := DefaultConfig()
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected token validation error")
+	}
+	cfg.Token = "secret"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected valid config, got %v", err)
+	}
+}

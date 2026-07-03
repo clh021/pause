@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -206,6 +207,9 @@ func (s *Server) handleQuit(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
+	if s.services.Quit != nil {
+		go s.services.Quit()
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -234,6 +238,17 @@ func decodeJSONBody(r *http.Request, dest any) error {
 		return err
 	}
 	return nil
+}
+
+func suffixPathValue(requestPath string, prefix string) string {
+	if !strings.HasPrefix(requestPath, prefix) {
+		return ""
+	}
+	value := strings.TrimPrefix(requestPath, prefix)
+	if value == "" {
+		return ""
+	}
+	return path.Clean("/" + value)[1:]
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
