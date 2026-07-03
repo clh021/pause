@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"pause/internal/meta"
 	"pause/internal/remoteserver"
 )
 
@@ -49,9 +50,18 @@ func PrintRemoteInfo(w io.Writer) error {
 		return err
 	}
 
-	_, err = fmt.Fprintf(
-		w,
-		"config=%s\nlocal_url=%s\ntoken=%s\nbind=%s:%d\nenabled=%t\n",
+	_, err = io.WriteString(w, formatRemoteInfo(path, cfg, meta.CurrentBuildInfo()))
+	return err
+}
+
+func formatRemoteInfo(path string, cfg remoteserver.Config, build meta.BuildInfo) string {
+	return fmt.Sprintf(
+		"version=%s\nbranch=%s\ncommit=%s\nbuild_time=%s\nvcs_modified=%s\nconfig=%s\nlocal_url=%s\ntoken=%s\nbind=%s:%d\nenabled=%t\n",
+		build.Version,
+		build.Branch,
+		build.Commit,
+		build.BuildTime,
+		build.Modified,
 		path,
 		cfg.LocalBaseURL(),
 		cfg.Token,
@@ -59,5 +69,4 @@ func PrintRemoteInfo(w io.Writer) error {
 		cfg.Port,
 		cfg.Enabled,
 	)
-	return err
 }

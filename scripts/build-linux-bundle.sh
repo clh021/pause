@@ -111,6 +111,44 @@ default_arch_label_from_platform() {
 
 ARTIFACT_VERSION="$(resolve_artifact_version)"
 
+resolve_git_branch() {
+  local branch=""
+  if ! git -C "${ROOT_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    if [[ "${GITHUB_REF_TYPE:-}" == "branch" && -n "${GITHUB_REF_NAME:-}" ]]; then
+      echo "${GITHUB_REF_NAME}"
+    else
+      echo "unknown"
+    fi
+    return
+  fi
+  branch="$(git -C "${ROOT_DIR}" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+  if [[ -z "${branch}" || "${branch}" == "HEAD" ]]; then
+    if [[ "${GITHUB_REF_TYPE:-}" == "branch" && -n "${GITHUB_REF_NAME:-}" ]]; then
+      branch="${GITHUB_REF_NAME}"
+    else
+      branch="detached"
+    fi
+  fi
+  echo "${branch}"
+}
+
+resolve_git_commit() {
+  if git -C "${ROOT_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git -C "${ROOT_DIR}" rev-parse HEAD 2>/dev/null || true
+  else
+    echo "unknown"
+  fi
+}
+
+resolve_build_time() {
+  date -u +"%Y-%m-%dT%H:%M:%SZ"
+}
+
+BUILD_GIT_BRANCH="$(resolve_git_branch)"
+BUILD_GIT_COMMIT="$(resolve_git_commit)"
+BUILD_TIME="$(resolve_build_time)"
+BUILD_LDFLAGS="-X pause/internal/meta.Version=${ARTIFACT_VERSION} -X pause/internal/meta.GitBranch=${BUILD_GIT_BRANCH} -X pause/internal/meta.GitCommit=${BUILD_GIT_COMMIT} -X pause/internal/meta.BuildTime=${BUILD_TIME}"
+
 if [[ -z "${LINUX_ARCH_LABEL}" ]]; then
   LINUX_ARCH_LABEL="$(default_arch_label_from_platform)"
 fi
@@ -130,6 +168,9 @@ echo "  linux_arch_label=${LINUX_ARCH_LABEL}"
 echo "  linux_output_dir=${LINUX_OUTPUT_DIR}"
 echo "  linux_bundle_output_dir=${LINUX_BUNDLE_OUTPUT_DIR}"
 echo "  artifact_version=${ARTIFACT_VERSION}"
+echo "  git_branch=${BUILD_GIT_BRANCH}"
+echo "  git_commit=${BUILD_GIT_COMMIT}"
+echo "  build_time=${BUILD_TIME}"
 echo "  app_icon_source=${APP_ICON_SOURCE}"
 echo "  wails_tags=${WAILS_TAGS}"
 echo "  use_clean=${USE_CLEAN}"
@@ -170,6 +211,7 @@ WAILS_ARGS=(
   build
   -platform "${LINUX_PLATFORM}"
   -tags "${WAILS_TAGS}"
+  -ldflags "${BUILD_LDFLAGS}"
 )
 if [[ "${USE_CLEAN}" == "1" ]]; then
   WAILS_ARGS+=(-clean)

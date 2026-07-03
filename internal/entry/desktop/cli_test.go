@@ -1,6 +1,12 @@
 package desktop
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"pause/internal/meta"
+	"pause/internal/remoteserver"
+)
 
 func TestResolveLaunchOptions_Table(t *testing.T) {
 	t.Setenv("PAUSE_HEADLESS", "")
@@ -54,5 +60,40 @@ func TestResolveLaunchOptions_HeadlessFromEnv(t *testing.T) {
 	}
 	if !got.Headless {
 		t.Fatalf("expected headless=true, got %+v", got)
+	}
+}
+
+func TestFormatRemoteInfo_IncludesBuildMetadata(t *testing.T) {
+	cfg := remoteserver.Config{
+		Enabled:     true,
+		BindAddress: "0.0.0.0",
+		Port:        18680,
+		Token:       "secret-token",
+	}
+	build := meta.BuildInfo{
+		Version:   "0.9.7",
+		Branch:    "webCtrl",
+		Commit:    "deadbeef",
+		BuildTime: "2026-07-03T12:34:56Z",
+		Modified:  "false",
+	}
+
+	output := formatRemoteInfo("/tmp/remote_server.json", cfg, build)
+
+	for _, want := range []string{
+		"version=0.9.7",
+		"branch=webCtrl",
+		"commit=deadbeef",
+		"build_time=2026-07-03T12:34:56Z",
+		"vcs_modified=false",
+		"config=/tmp/remote_server.json",
+		"local_url=http://127.0.0.1:18680",
+		"token=secret-token",
+		"bind=0.0.0.0:18680",
+		"enabled=true",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("output missing %q:\n%s", want, output)
+		}
 	}
 }
