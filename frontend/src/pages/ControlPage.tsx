@@ -254,206 +254,210 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
         )}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(20rem,0.95fr)]">
-        <div className="space-y-4">
-          <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlActions')}</h2>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">{t(locale, 'controlForceBreakHint')}</p>
-              </div>
-              <button
-                type="button"
-                className={btnGhost}
-                disabled={actionLoading !== null}
-                onClick={() => void fetchActivity()}
-              >
-                {t(locale, 'controlRefresh')}
-              </button>
+      <div className="space-y-4">
+        <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlActions')}</h2>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">{t(locale, 'controlForceBreakHint')}</p>
             </div>
-
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_auto_auto]">
-              <label className="flex flex-col gap-2">
-                <span className="text-xs font-medium text-[var(--text-secondary)]">{t(locale, 'controlForceBreakMinutes')}</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  className="h-11 rounded-lg border border-[var(--dialog-field-border)] bg-[var(--dialog-field-bg)] px-3 text-sm text-[var(--dialog-field-text)] outline-none transition-colors focus:border-[var(--dialog-field-focus-border)] focus:ring-2 focus:ring-[var(--control-focus-ring)]"
-                  value={forceBreakMinutes}
-                  onChange={(event) => setForceBreakMinutes(normalizePositiveInteger(event.target.value))}
-                />
-              </label>
-              <button
-                type="button"
-                className={`${btnPrimary} min-h-11 ${actionLoading === 'forceBreak' ? 'cursor-wait' : ''}`}
-                disabled={actionLoading !== null}
-                onClick={() => void handleForceBreak()}
-              >
-                {t(locale, 'controlForceBreak')}
-              </button>
-              <button
-                type="button"
-                className={`${btnDanger} min-h-11 ${actionLoading === 'forceUnlock' ? 'cursor-wait' : ''}`}
-                disabled={actionLoading !== null || !isResting}
-                onClick={() => void handleForceUnlock()}
-              >
-                {t(locale, 'controlForceUnlock')}
-              </button>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                className={`${btnGhost} ${actionLoading === 'manualShot' ? 'cursor-wait' : ''}`}
-                disabled={actionLoading !== null}
-                onClick={() => void handleManualScreenshot()}
-              >
-                {t(locale, 'controlManualShot')}
-              </button>
-              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-[var(--card-border)] bg-[var(--surface-muted)] px-3 py-2">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[var(--accent-bg)]"
-                  checked={autoShot}
-                  onChange={() => void handleAutoShotToggle()}
-                />
-                <span className="text-sm text-[var(--text-primary)]">{t(locale, 'controlAutoShot')}</span>
-              </label>
-            </div>
+            <button
+              type="button"
+              className={btnGhost}
+              disabled={actionLoading !== null}
+              onClick={() => void fetchActivity()}
+            >
+              {t(locale, 'controlRefresh')}
+            </button>
           </div>
 
-          <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlTimeline')}</h2>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                  {activity
-                    ? `${activity.activeMinutes}m ${t(locale, 'controlActive')} / ${activity.idleMinutes}m ${t(locale, 'controlIdle')}`
-                    : t(locale, 'loading')}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full border border-[var(--control-dot-idle-border)] bg-transparent" />
-                  {t(locale, 'controlLegendIdle')}
-                </span>
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full border border-[var(--control-dot-active)] bg-[var(--control-dot-active)]" />
-                  {t(locale, 'controlLegendActive')}
-                </span>
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full border border-[var(--control-dot-shot-border)] bg-[var(--control-dot-active)] ring-1 ring-[var(--control-dot-shot-border)] ring-offset-1 ring-offset-[var(--card-bg)]" />
-                  {t(locale, 'controlLegendScreenshot')}
-                </span>
-              </div>
-            </div>
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_auto_auto]">
+            <label className="flex flex-col gap-2">
+              <span className="text-xs font-medium text-[var(--text-secondary)]">{t(locale, 'controlForceBreakMinutes')}</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                className="h-11 rounded-lg border border-[var(--dialog-field-border)] bg-[var(--dialog-field-bg)] px-3 text-sm text-[var(--dialog-field-text)] outline-none transition-colors focus:border-[var(--dialog-field-focus-border)] focus:ring-2 focus:ring-[var(--control-focus-ring)]"
+                value={forceBreakMinutes}
+                onChange={(event) => setForceBreakMinutes(normalizePositiveInteger(event.target.value))}
+              />
+            </label>
+            <button
+              type="button"
+              className={`${btnPrimary} min-h-11 ${actionLoading === 'forceBreak' ? 'cursor-wait' : ''}`}
+              disabled={actionLoading !== null}
+              onClick={() => void handleForceBreak()}
+            >
+              {t(locale, 'controlForceBreak')}
+            </button>
+            <button
+              type="button"
+              className={`${btnDanger} min-h-11 ${actionLoading === 'forceUnlock' ? 'cursor-wait' : ''}`}
+              disabled={actionLoading !== null || !isResting}
+              onClick={() => void handleForceUnlock()}
+            >
+              {t(locale, 'controlForceUnlock')}
+            </button>
+          </div>
 
-            {loading && groupedHours.length === 0 ? (
-              <p className="py-6 text-center text-sm text-[var(--text-secondary)]">{t(locale, 'loading')}</p>
-            ) : groupedHours.length === 0 ? (
-              <p className="py-6 text-center text-sm text-[var(--text-secondary)]">{t(locale, 'controlTimelineEmpty')}</p>
-            ) : (
-              <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-                {groupedHours.map((hourMinutes) => {
-                  const hourStart = hourMinutes[0]?.minuteStartSec ?? 0;
-                  return (
-                    <article
-                      key={hourStart}
-                      className="rounded-lg border border-[var(--card-border)] bg-[var(--surface-muted)] p-3 shadow-[var(--shadow-soft)]"
-                    >
-                      <header className="mb-3 flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-[var(--text-primary)]">{formatHourLabel(locale, hourStart)}</span>
-                        <span className="text-[11px] text-[var(--text-tertiary)]">{t(locale, 'controlHourLabel')}</span>
-                      </header>
-                      <div className="grid grid-cols-[repeat(12,minmax(0,1fr))] gap-1 sm:grid-cols-[repeat(20,minmax(0,1fr))]">
-                        {hourMinutes.map((minute) => {
-                          const isSelected = selectedShot?.name === minute.shotName;
-                          const className = minute.hasScreenshot
-                            ? `border-[var(--control-dot-shot-border)] bg-[var(--control-dot-active)] ring-1 ring-[var(--control-dot-shot-border)] ring-offset-1 ring-offset-[var(--surface-muted)] ${
-                                isSelected ? 'scale-[1.02] shadow-[0_0_0_1px_var(--control-dot-shot-border)]' : ''
-                              }`
-                            : minute.active
-                              ? 'border-[var(--control-dot-active)] bg-[var(--control-dot-active)]'
-                              : 'border-[var(--control-dot-idle-border)] bg-transparent';
-                          return (
-                            <button
-                              key={minute.minuteStartSec}
-                              type="button"
-                              disabled={!minute.hasScreenshot}
-                              className={`aspect-square rounded-full border transition-transform duration-150 ${
-                                minute.hasScreenshot ? 'cursor-pointer hover:scale-105' : 'cursor-default'
-                              } ${className}`}
-                              title={formatMinuteLabel(locale, minute.minuteStartSec)}
-                              onClick={() => {
-                                if (!minute.shotName) return;
-                                setPreviewBroken(false);
-                                setSelectedShot({ name: minute.shotName, minuteStartSec: minute.minuteStartSec });
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className={`${btnGhost} ${actionLoading === 'manualShot' ? 'cursor-wait' : ''}`}
+              disabled={actionLoading !== null}
+              onClick={() => void handleManualScreenshot()}
+            >
+              {t(locale, 'controlManualShot')}
+            </button>
+            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-[var(--card-border)] bg-[var(--surface-muted)] px-3 py-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-[var(--accent-bg)]"
+                checked={autoShot}
+                onChange={() => void handleAutoShotToggle()}
+              />
+              <span className="text-sm text-[var(--text-primary)]">{t(locale, 'controlAutoShot')}</span>
+            </label>
           </div>
         </div>
 
-        <div className="space-y-4">
-          {manualPreviewUrl && (
-            <section className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlManualShot')}</h3>
-                <button
-                  type="button"
-                  className="rounded-md px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--seg-hover-bg)]"
-                  onClick={() => {
-                    if (manualPreviewUrlRef.current) {
-                      URL.revokeObjectURL(manualPreviewUrlRef.current);
-                      manualPreviewUrlRef.current = null;
-                    }
-                    setManualPreviewUrl(null);
-                  }}
-                >
-                  {t(locale, 'close')}
-                </button>
-              </div>
-              <img src={manualPreviewUrl} alt="manual screenshot" className="max-h-[22rem] w-full rounded-lg object-contain" />
-            </section>
-          )}
-
-          <section className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
-            <div className="mb-3">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlScreenshot')}</h3>
+        <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlTimeline')}</h2>
               <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                {selectedShot ? formatMinuteLabel(locale, selectedShot.minuteStartSec) : t(locale, 'controlPreviewHint')}
+                {activity
+                  ? `${activity.activeMinutes}m ${t(locale, 'controlActive')} / ${activity.idleMinutes}m ${t(locale, 'controlIdle')}`
+                  : t(locale, 'loading')}
               </p>
             </div>
-            {selectedShot && assetAccess ? (
-              previewBroken ? (
-                <p className="rounded-lg border border-[var(--error-border)] bg-[var(--error-bg)] px-3 py-4 text-sm text-[var(--error-text)]">
-                  {t(locale, 'controlScreenshotError')}
-                </p>
-              ) : (
+            <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
+              <span className="inline-flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full border border-[var(--control-dot-idle-border)] bg-transparent" />
+                {t(locale, 'controlLegendIdle')}
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full border border-[var(--control-dot-active)] bg-[var(--control-dot-active)]" />
+                {t(locale, 'controlLegendActive')}
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full border border-[var(--control-dot-shot-border)] bg-[var(--control-dot-active)] ring-1 ring-[var(--control-dot-shot-border)] ring-offset-1 ring-offset-[var(--card-bg)]" />
+                {t(locale, 'controlLegendScreenshot')}
+              </span>
+            </div>
+          </div>
+
+          {loading && groupedHours.length === 0 ? (
+            <p className="py-6 text-center text-sm text-[var(--text-secondary)]">{t(locale, 'loading')}</p>
+          ) : groupedHours.length === 0 ? (
+            <p className="py-6 text-center text-sm text-[var(--text-secondary)]">{t(locale, 'controlTimelineEmpty')}</p>
+          ) : (
+            <div className="space-y-3">
+              {groupedHours.map((hourMinutes) => {
+                const hourStart = hourMinutes[0]?.minuteStartSec ?? 0;
+                return (
+                  <article
+                    key={hourStart}
+                    className="rounded-lg border border-[var(--card-border)] bg-[var(--surface-muted)] p-4 shadow-[var(--shadow-soft)]"
+                  >
+                    <header className="mb-3 flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-[var(--text-primary)]">{formatHourLabel(locale, hourStart)}</span>
+                      <span className="text-[11px] text-[var(--text-tertiary)]">{t(locale, 'controlHourLabel')}</span>
+                    </header>
+                    <div className="grid grid-cols-[repeat(12,minmax(0,1fr))] gap-1.5 md:grid-cols-[repeat(20,minmax(0,1fr))]">
+                      {hourMinutes.map((minute) => {
+                        const isSelected = selectedShot?.name === minute.shotName;
+                        const className = minute.hasScreenshot
+                          ? `border-[var(--control-dot-shot-border)] bg-[var(--control-dot-active)] ring-1 ring-[var(--control-dot-shot-border)] ring-offset-1 ring-offset-[var(--surface-muted)] ${
+                              isSelected ? 'scale-[1.02] shadow-[0_0_0_1px_var(--control-dot-shot-border)]' : ''
+                            }`
+                          : minute.active
+                            ? 'border-[var(--control-dot-active)] bg-[var(--control-dot-active)]'
+                            : 'border-[var(--control-dot-idle-border)] bg-transparent';
+                        return (
+                          <button
+                            key={minute.minuteStartSec}
+                            type="button"
+                            disabled={!minute.hasScreenshot}
+                            className={`aspect-square rounded-full border transition-transform duration-150 ${
+                              minute.hasScreenshot ? 'cursor-pointer hover:scale-105' : 'cursor-default'
+                            } ${className}`}
+                            title={formatMinuteLabel(locale, minute.minuteStartSec)}
+                            onClick={() => {
+                              if (!minute.shotName) return;
+                              setPreviewBroken(false);
+                              setSelectedShot({ name: minute.shotName, minuteStartSec: minute.minuteStartSec });
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {manualPreviewUrl && (
+          <section className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlManualShot')}</h3>
+              <button
+                type="button"
+                className="rounded-md px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--seg-hover-bg)]"
+                onClick={() => {
+                  if (manualPreviewUrlRef.current) {
+                    URL.revokeObjectURL(manualPreviewUrlRef.current);
+                    manualPreviewUrlRef.current = null;
+                  }
+                  setManualPreviewUrl(null);
+                }}
+              >
+                {t(locale, 'close')}
+              </button>
+            </div>
+            <div className="rounded-lg bg-[var(--surface-muted)] p-2">
+              <img
+                src={manualPreviewUrl}
+                alt="manual screenshot"
+                className="max-h-[22rem] w-full rounded-lg bg-[var(--surface-muted)] object-contain"
+              />
+            </div>
+          </section>
+        )}
+
+        <section className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlScreenshot')}</h3>
+            <p className="mt-1 text-xs text-[var(--text-secondary)]">
+              {selectedShot ? formatMinuteLabel(locale, selectedShot.minuteStartSec) : t(locale, 'controlPreviewHint')}
+            </p>
+          </div>
+          {selectedShot && assetAccess ? (
+            previewBroken ? (
+              <p className="rounded-lg border border-[var(--error-border)] bg-[var(--error-bg)] px-3 py-4 text-sm text-[var(--error-text)]">
+                {t(locale, 'controlScreenshotError')}
+              </p>
+            ) : (
+              <div className="rounded-lg bg-[var(--surface-muted)] p-2">
                 <img
                   src={`${getShotUrl(selectedShot.name, assetAccess)}${assetAccess.accessToken ? '&' : '?'}t=${selectedShot.minuteStartSec}`}
                   alt={selectedShot.name}
-                  className="max-h-[32rem] w-full rounded-lg object-contain"
+                  className="max-h-[32rem] w-full rounded-lg bg-[var(--surface-muted)] object-contain"
                   onError={() => setPreviewBroken(true)}
                 />
-              )
-            ) : (
-              <div className="rounded-lg border border-dashed border-[var(--card-border)] bg-[var(--surface-muted)] px-3 py-10 text-center text-sm text-[var(--text-secondary)]">
-                {t(locale, 'controlPreviewEmpty')}
               </div>
-            )}
-            {selectedShot && (
-              <p className="mt-2 break-all text-[11px] text-[var(--text-tertiary)]">{selectedShot.name}</p>
-            )}
-          </section>
-        </div>
+            )
+          ) : (
+            <div className="rounded-lg border border-dashed border-[var(--card-border)] bg-[var(--surface-muted)] px-3 py-10 text-center text-sm text-[var(--text-secondary)]">
+              {t(locale, 'controlPreviewEmpty')}
+            </div>
+          )}
+          {selectedShot && (
+            <p className="mt-2 break-all text-[11px] text-[var(--text-tertiary)]">{selectedShot.name}</p>
+          )}
+        </section>
       </div>
     </section>
   );
