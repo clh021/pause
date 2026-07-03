@@ -50,6 +50,10 @@ function formatMinuteLabel(locale: Locale, minuteStartSec: number): string {
   });
 }
 
+function formatMinuteNumber(minuteStartSec: number): string {
+  return String(new Date(minuteStartSec * 1000).getMinutes()).padStart(2, '0');
+}
+
 function normalizePositiveInteger(value: string): string {
   return value.replace(/\D+/g, '');
 }
@@ -364,7 +368,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                       <span className="text-xs font-semibold text-[var(--text-primary)]">{formatHourLabel(locale, hourStart)}</span>
                       <span className="text-[11px] text-[var(--text-tertiary)]">{t(locale, 'controlHourLabel')}</span>
                     </header>
-                    <div className="grid grid-cols-[repeat(12,minmax(0,1fr))] gap-1.5 md:grid-cols-[repeat(20,minmax(0,1fr))]">
+                    <div className="grid grid-cols-[repeat(12,minmax(0,1fr))] justify-items-center gap-1.5 md:grid-cols-[repeat(20,minmax(0,1fr))]">
                       {hourMinutes.map((minute) => {
                         const isSelected = selectedShot?.name === minute.shotName;
                         const className = minute.hasScreenshot
@@ -374,21 +378,26 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                           : minute.active
                             ? 'border-[var(--control-dot-active)] bg-[var(--control-dot-active)]'
                             : 'border-[var(--control-dot-idle-border)] bg-transparent';
+                        const textClassName = minute.hasScreenshot || minute.active
+                          ? 'text-[var(--control-dot-text-strong)]'
+                          : 'text-[var(--control-dot-text-muted)]';
                         return (
                           <button
                             key={minute.minuteStartSec}
                             type="button"
                             disabled={!minute.hasScreenshot}
-                            className={`aspect-square rounded-full border transition-transform duration-150 ${
+                            className={`flex h-6 w-6 items-center justify-center rounded-full border text-[8px] font-semibold leading-none transition-transform duration-150 md:h-5 md:w-5 md:text-[7px] ${
                               minute.hasScreenshot ? 'cursor-pointer hover:scale-105' : 'cursor-default'
-                            } ${className}`}
+                            } ${className} ${textClassName}`}
                             title={formatMinuteLabel(locale, minute.minuteStartSec)}
                             onClick={() => {
                               if (!minute.shotName) return;
                               setPreviewBroken(false);
                               setSelectedShot({ name: minute.shotName, minuteStartSec: minute.minuteStartSec });
                             }}
-                          />
+                          >
+                            {formatMinuteNumber(minute.minuteStartSec)}
+                          </button>
                         );
                       })}
                     </div>

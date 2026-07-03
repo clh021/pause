@@ -68,6 +68,8 @@
   --control-dot-idle-border: rgba(31, 41, 55, 0.24);
   --control-dot-active: #2f7a66;
   --control-dot-shot-border: #d07b58;
+  --control-dot-text-strong: #f8fafc;
+  --control-dot-text-muted: rgba(17, 24, 39, 0.62);
   --chart-text-color: rgba(17, 24, 39, 0.82);
   --chart-subtle-text-color: rgba(17, 24, 39, 0.62);
   --chart-grid-color: rgba(17, 24, 39, 0.13);
@@ -151,6 +153,8 @@ body[data-theme='dark'] {
   --control-dot-idle-border: rgba(229, 231, 235, 0.28);
   --control-dot-active: #63b39a;
   --control-dot-shot-border: #d18a67;
+  --control-dot-text-strong: #0f1115;
+  --control-dot-text-muted: rgba(229, 231, 235, 0.74);
   --chart-text-color: rgba(229, 231, 235, 0.86);
   --chart-subtle-text-color: rgba(229, 231, 235, 0.66);
   --chart-grid-color: rgba(148, 163, 184, 0.2);

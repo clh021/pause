@@ -50,6 +50,16 @@ function detectPlatformClass(): string {
   return 'other';
 }
 
+function resolvePreviewTheme(themeSetting?: string): 'light' | 'dark' {
+  if (themeSetting === 'light' || themeSetting === 'dark') {
+    return themeSetting;
+  }
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return 'light';
+}
+
 function resolveInlineErrorMessage(locale: 'zh-CN' | 'en-US', message: string): string {
   const normalized = String(message ?? '').trim().toUpperCase();
   if (normalized.includes(NOTIFICATION_ERROR_PERMISSION_DENIED)) {
@@ -257,7 +267,7 @@ export function App() {
 
   useEffect(() => {
     const language = runtime?.effectiveLanguage;
-    const theme = runtime?.effectiveTheme;
+    const theme = runtime?.effectiveTheme ?? resolvePreviewTheme(settings?.ui.theme);
     if (language === 'zh-CN' || language === 'en-US') {
       document.body.dataset.language = language;
     } else {
@@ -278,7 +288,7 @@ export function App() {
       delete document.body.dataset.theme;
       delete document.body.dataset.themeVariant;
     };
-  }, [darkThemeVariant, runtime?.effectiveLanguage, runtime?.effectiveTheme]);
+  }, [darkThemeVariant, runtime?.effectiveLanguage, runtime?.effectiveTheme, settings?.ui.theme]);
 
   const toggleDarkThemeVariant = useCallback(() => {
     setDarkThemeVariant((prev) => {
