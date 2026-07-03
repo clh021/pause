@@ -228,7 +228,7 @@ func (s windowsStartupManager) SetLaunchAtLogin(enabled bool) error {
 		}
 	}
 
-	return key.SetStringValue(s.valueName, quoteCommandPath(execPath))
+	return key.SetStringValue(s.valueName, startupCommand(execPath))
 }
 
 func (s windowsStartupManager) GetLaunchAtLogin() (bool, error) {
@@ -266,6 +266,14 @@ func quoteCommandPath(path string) string {
 		return path
 	}
 	return `"` + path + `"`
+}
+
+func startupCommand(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	return quoteCommandPath(path) + " --headless"
 }
 
 func toastAppID(raw string) string {

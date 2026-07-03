@@ -104,3 +104,11 @@ func TestBuildWindowsToastXML_EscapesText(t *testing.T) {
 		t.Fatalf("toast xml=%q want=%q", got, want)
 	}
 }
+
+func TestStartupCommand_UsesHeadlessMode(t *testing.T) {
+	got := startupCommand(`C:\Program Files\Pause\Pause.exe`)
+	want := `"C:\Program Files\Pause\Pause.exe" --headless`
+	if got != want {
+		t.Fatalf("startupCommand()=%q want=%q", got, want)
+	}
+}

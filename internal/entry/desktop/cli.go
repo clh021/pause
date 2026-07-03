@@ -15,6 +15,7 @@ var errHelpRequested = errors.New("help requested")
 
 type LaunchOptions struct {
 	Headless        bool
+	Windowed        bool
 	PrintRemoteInfo bool
 }
 
@@ -30,6 +31,10 @@ func ResolveLaunchOptions(args []string) (LaunchOptions, error) {
 		switch strings.TrimSpace(arg) {
 		case "--headless":
 			opts.Headless = true
+			opts.Windowed = false
+		case "--windowed", "--gui":
+			opts.Headless = false
+			opts.Windowed = true
 		case "--print-remote-info":
 			opts.PrintRemoteInfo = true
 		case "-h", "--help":
@@ -38,6 +43,10 @@ func ResolveLaunchOptions(args []string) (LaunchOptions, error) {
 	}
 
 	return opts, nil
+}
+
+func ShouldDefaultHeadlessForPlatform(goos string, opts LaunchOptions) bool {
+	return goos == "windows" && !opts.Headless && !opts.Windowed && !opts.PrintRemoteInfo
 }
 
 func PrintRemoteInfo(w io.Writer) error {

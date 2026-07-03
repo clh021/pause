@@ -5,6 +5,7 @@ package main
 import (
 	"embed"
 	"os"
+	"runtime"
 
 	entry "pause/internal/entry/desktop"
 	"pause/internal/logx"
@@ -17,7 +18,7 @@ func main() {
 	opts, err := entry.ResolveLaunchOptions(os.Args[1:])
 	if err != nil {
 		if err.Error() == "help requested" {
-			if _, printErr := os.Stdout.WriteString("Usage:\n  Pause [--headless|--print-remote-info]\n"); printErr != nil {
+			if _, printErr := os.Stdout.WriteString("Usage:\n  Pause [--headless|--windowed|--gui|--print-remote-info]\n"); printErr != nil {
 				os.Exit(1)
 			}
 			return
@@ -33,8 +34,10 @@ func main() {
 		}
 	}
 
+	shouldDefaultHeadless := entry.ShouldDefaultHeadlessForPlatform(runtime.GOOS, opts)
+
 	switch {
-	case opts.Headless:
+	case opts.Headless || shouldDefaultHeadless:
 		err = entry.RunHeadless("")
 	case opts.PrintRemoteInfo:
 		err = nil

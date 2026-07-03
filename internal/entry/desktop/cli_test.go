@@ -32,14 +32,39 @@ func TestResolveLaunchOptions_Table(t *testing.T) {
 			want: LaunchOptions{PrintRemoteInfo: true},
 		},
 		{
+			name: "windowed only",
+			args: []string{"--windowed"},
+			want: LaunchOptions{Windowed: true},
+		},
+		{
+			name: "gui alias",
+			args: []string{"--gui"},
+			want: LaunchOptions{Windowed: true},
+		},
+		{
 			name: "print and headless",
 			args: []string{"--print-remote-info", "--headless"},
 			want: LaunchOptions{Headless: true, PrintRemoteInfo: true},
+		},
+		{
+			name: "windowed overrides env headless",
+			args: []string{"--windowed"},
+			want: LaunchOptions{Windowed: true},
+		},
+		{
+			name: "headless wins after windowed",
+			args: []string{"--windowed", "--headless"},
+			want: LaunchOptions{Headless: true},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.name == "windowed overrides env headless" {
+				t.Setenv("PAUSE_HEADLESS", "true")
+			} else {
+				t.Setenv("PAUSE_HEADLESS", "")
+			}
 			got, err := ResolveLaunchOptions(tc.args)
 			if err != nil {
 				t.Fatalf("ResolveLaunchOptions() err=%v", err)
@@ -60,6 +85,54 @@ func TestResolveLaunchOptions_HeadlessFromEnv(t *testing.T) {
 	}
 	if !got.Headless {
 		t.Fatalf("expected headless=true, got %+v", got)
+	}
+}
+
+func TestShouldDefaultHeadlessForPlatform(t *testing.T) {
+	cases := []struct {
+		name string
+		goos string
+		opts LaunchOptions
+		want bool
+	}{
+		{
+			name: "windows default",
+			goos: "windows",
+			opts: LaunchOptions{},
+			want: true,
+		},
+		{
+			name: "linux default",
+			goos: "linux",
+			opts: LaunchOptions{},
+			want: false,
+		},
+		{
+			name: "explicit headless not defaulted",
+			goos: "windows",
+			opts: LaunchOptions{Headless: true},
+			want: false,
+		},
+		{
+			name: "windowed disables default headless",
+			goos: "windows",
+			opts: LaunchOptions{Windowed: true},
+			want: false,
+		},
+		{
+			name: "print only disables default headless",
+			goos: "windows",
+			opts: LaunchOptions{PrintRemoteInfo: true},
+			want: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ShouldDefaultHeadlessForPlatform(tc.goos, tc.opts); got != tc.want {
+				t.Fatalf("ShouldDefaultHeadlessForPlatform(%q, %+v)=%t want=%t", tc.goos, tc.opts, got, tc.want)
+			}
+		})
 	}
 }
 

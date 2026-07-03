@@ -13,7 +13,7 @@ func main() {
 	opts, err := entry.ResolveLaunchOptions(os.Args[1:])
 	if err != nil {
 		if err.Error() == "help requested" {
-			if _, printErr := os.Stdout.WriteString("Usage:\n  pause [--headless|--print-remote-info]\n"); printErr != nil {
+			if _, printErr := os.Stdout.WriteString("Usage:\n  pause [--headless|--windowed|--gui|--print-remote-info]\n"); printErr != nil {
 				os.Exit(1)
 			}
 			return

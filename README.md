@@ -64,14 +64,16 @@ https://github.com/user-attachments/assets/3ac20ceb-b286-4bf2-ad21-6a534e1dcf9a
 - 浏览器访问远程页面时，需要先输入 `token` 建立会话。
 - `0.0.0.0` 绑定被保留，但敏感接口必须通过 token 验证。
 - 桌面端内嵌前端会自动使用本机回环地址访问远程控制接口。
+- Windows 打包版默认以后台 `headless` 模式启动，不再弹主窗口；如需调试桌面窗口，可使用 `--windowed` 或 `--gui`。
 - 可执行文件支持：
 
   ```bash
   ./Pause --headless
+  ./Pause --windowed
   ./Pause --print-remote-info
   ```
 
-  `--headless` 会只启动后台服务，不打开主窗口。`--print-remote-info` 会打印本机访问地址、配置文件路径和当前 token。
+  `--headless` 会只启动后台服务，不打开主窗口。`--windowed` / `--gui` 会显式打开桌面窗口。`--print-remote-info` 会打印本机访问地址、配置文件路径和当前 token。
 
 ## 开发环境
 
