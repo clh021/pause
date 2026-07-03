@@ -3,6 +3,7 @@ package remoteserver
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -13,6 +14,29 @@ func TestLoadConfigFileMissingReturnsDefaults(t *testing.T) {
 	}
 	if cfg != DefaultConfig() {
 		t.Fatalf("expected default config, got %+v", cfg)
+	}
+}
+
+func TestLoadOrInitConfigFileMissingCreatesToken(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "remote_server.json")
+
+	cfg, err := loadOrInitConfigFile(path)
+	if err != nil {
+		t.Fatalf("loadOrInitConfigFile() err=%v", err)
+	}
+	if !cfg.Enabled {
+		t.Fatalf("expected enabled config")
+	}
+	if cfg.Token == "" {
+		t.Fatalf("expected generated token")
+	}
+
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile() err=%v", err)
+	}
+	if !strings.Contains(string(saved), cfg.Token) {
+		t.Fatalf("expected token persisted to config file")
 	}
 }
 
@@ -41,6 +65,22 @@ func TestLoadConfigFileNormalizesValues(t *testing.T) {
 	}
 	if cfg.TriggerCooldownSec != defaultTriggerCooldownSec {
 		t.Fatalf("expected cooldown %d, got %d", defaultTriggerCooldownSec, cfg.TriggerCooldownSec)
+	}
+}
+
+func TestLoadOrInitConfigFileAddsTokenWhenMissing(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "remote_server.json")
+	if err := os.WriteFile(path, []byte(`{"enabled":true,"bindAddress":"0.0.0.0","port":18680}`), 0o644); err != nil {
+		t.Fatalf("WriteFile() err=%v", err)
+	}
+
+	cfg, err := loadOrInitConfigFile(path)
+	if err != nil {
+		t.Fatalf("loadOrInitConfigFile() err=%v", err)
+	}
+	if cfg.Token == "" {
+		t.Fatalf("expected generated token")
 	}
 }
 

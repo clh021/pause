@@ -123,6 +123,9 @@
 - 暂不生成 Arch 原生 `pkg.tar.zst`
 - 先提供可直接解压运行的便携 `tar.gz`
 - 目标是优先覆盖 Arch Linux KDE 用户的可运行需求；若缺少运行库，优先补装系统依赖而不是重打包
+- 便携包当前额外支持：
+  - `./Pause --headless`
+  - `./Pause --print-remote-info`
 
 ## 发布清单规范
 

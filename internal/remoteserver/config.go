@@ -1,10 +1,13 @@
 package remoteserver
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"pause/internal/paths"
@@ -38,29 +41,80 @@ func DefaultConfig() Config {
 
 // LoadConfig loads remote server settings from the app config directory.
 func LoadConfig() (Config, error) {
-	path, err := paths.ConfigFile(configFileName)
+	path, err := ConfigPath()
 	if err != nil {
 		return Config{}, err
 	}
-	return loadConfigFile(path)
+	return loadOrInitConfigFile(path)
+}
+
+func ConfigPath() (string, error) {
+	return paths.ConfigFile(configFileName)
 }
 
 func loadConfigFile(path string) (Config, error) {
+	cfg, _, err := readConfigFile(path)
+	return cfg, err
+}
+
+func loadOrInitConfigFile(path string) (Config, error) {
+	cfg, _, err := readConfigFile(path)
+	if err != nil {
+		return Config{}, err
+	}
+	if !cfg.Enabled || cfg.Token != "" {
+		return cfg, nil
+	}
+
+	token, err := generateToken()
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.Token = token
+	if err := writeConfigFile(path, cfg); err != nil {
+		return Config{}, err
+	}
+	return cfg, nil
+}
+
+func readConfigFile(path string) (Config, bool, error) {
 	cfg := DefaultConfig()
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return cfg, nil
+			return cfg, false, nil
 		}
-		return Config{}, err
+		return Config{}, false, err
 	}
 	if len(strings.TrimSpace(string(data))) == 0 {
-		return cfg, nil
+		return cfg, true, nil
 	}
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return Config{}, err
+		return Config{}, true, err
 	}
-	return cfg.Normalize(), nil
+	return cfg.Normalize(), true, nil
+}
+
+func writeConfigFile(path string, cfg Config) error {
+	cfg = cfg.Normalize()
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o600)
+}
+
+func generateToken() (string, error) {
+	var buf [24]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf[:]), nil
 }
 
 // Normalize clamps invalid config values to safe defaults.

@@ -18,6 +18,10 @@ func RunHeadless(configPath string) error {
 	defer stop()
 
 	desktopApp.Startup(ctx)
+	info := desktopApp.GetRemoteServerInfo()
+	if info.Running {
+		logx.Infof("app.headless_remote url=%s token_required=%t", info.LocalBaseURL, info.TokenRequired)
+	}
 	logx.Infof("app.headless_running")
 	<-ctx.Done()
 	logx.Infof("app.headless_stopped")
