@@ -133,6 +133,9 @@ go test -tags wails ./...
 # Windows 安装器
 ./scripts/build-windows-installer.sh
 
+# Linux 便携包
+./scripts/build-linux-bundle.sh
+
 # 生成发布清单与校验和
 ./scripts/generate-release-manifest.sh --version <version> --channel stable
 ```
@@ -165,7 +168,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\cleanup\windows\cleanup-pause
 ## 平台说明
 
 - Windows：主流程可用（提醒、休息会话、通知、开机启动、桌面壳交互）。
-- Linux：适配层已有骨架实现，完整支持计划中。
+- Linux：提供便携 `tar.gz` 构建产物，适合在 Arch Linux KDE 等环境中直接解压运行。
 
 ## License
 

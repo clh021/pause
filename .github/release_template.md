@@ -21,10 +21,9 @@
       </td>
     </tr>
     <tr>
-      <td>macOS</td>
+      <td>Linux</td>
       <td>
-        <a href="https://github.com/REPO/releases/download/vVERSION/Pause-vVERSION-macos-arm64.dmg"><img src="https://img.shields.io/badge/DMG-Apple%20Silicon-%23000000.svg?logo=apple"></a><br>
-        <a href="https://github.com/REPO/releases/download/vVERSION/Pause-vVERSION-macos-x64.dmg"><img src="https://img.shields.io/badge/DMG-Intel%20X64-%2300A9E0.svg?logo=apple"></a>
+        <a href="https://github.com/REPO/releases/download/vVERSION/Pause-vVERSION-linux-x64.tar.gz"><img src="https://img.shields.io/badge/Portable-tar.gz-FCC624.svg?logo=linux&logoColor=black"></a>
       </td>
     </tr>
   </tbody>

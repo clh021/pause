@@ -1,6 +1,6 @@
 # Pause 打包、发版与更新源
 
-最后更新：2026-06-18
+最后更新：2026-07-03
 
 本文档定义 Pause 当前桌面端的打包规范、GitHub Release 流程以及稳定更新源（stable feed）约定。
 
@@ -14,6 +14,7 @@
 ## 脚本入口
 
 - Windows 安装器：`scripts/build-windows-installer.sh`
+- Linux 便携包：`scripts/build-linux-bundle.sh`
 - 发布清单：`scripts/generate-release-manifest.sh`
 - 版本更新：`scripts/bump-version.sh`
 - 版本校验：`scripts/check-version-sync.sh`
@@ -37,6 +38,7 @@
 
 - 原始构建产物根目录：`build/bin`
 - Windows 产物子目录（默认）：`build/bin/windows-x64` 或 `build/bin/windows-arm64`
+- Linux 产物子目录（默认）：`build/bin/linux-x64` 或 `build/bin/linux-arm64`
 - 发布清单目录（默认）：`build/bin/release`
 
 建议在正式发版时使用独立目录（例如 `build/bin/release/<version>`）存放归档结果，避免与临时构建文件混放。
@@ -83,6 +85,45 @@
 - `UseLegacyInstallDirIfNeeded` 中从 `UninstallString` 推断旧安装目录的逻辑只用于兼容未写入 `InstallLocation` 的老版本。
 - 后续已有足够公开版本写入 `InstallLocation`，且不再需要支持这些老版本直接升级时，可以删除该兼容逻辑。
 
+## Linux 打包规范
+
+命令：
+
+```bash
+./scripts/build-linux-bundle.sh
+```
+
+前置依赖：
+
+- `gtk3` / `libgtk-3-dev`
+- `webkit2gtk` 运行时，以及构建机上的 WebKitGTK 开发包
+- `wails` CLI（缺失时脚本会自动回退到 `go run github.com/wailsapp/wails/v2/cmd/wails@v2.10.2`）
+
+常用参数：
+
+- `--platform <linux/amd64|linux/arm64|...>`
+- `--arch-label <label>`
+- `--output-dir <path>`
+- `--tags <go_build_tags>`
+- `--clean|--no-clean`
+
+默认行为：
+
+- 默认平台：`linux/amd64`
+- 默认目录：`build/bin/linux-x64`
+- 默认归档文件名：`Pause-v<version>-linux-x64.tar.gz`
+- 归档内容：
+  - `Pause` 可执行文件
+  - `Pause.desktop`
+  - `pause.png`
+  - `README-linux.txt`
+
+当前 Linux 发版策略：
+
+- 暂不生成 Arch 原生 `pkg.tar.zst`
+- 先提供可直接解压运行的便携 `tar.gz`
+- 目标是优先覆盖 Arch Linux KDE 用户的可运行需求；若缺少运行库，优先补装系统依赖而不是重打包
+
 ## 发布清单规范
 
 命令：
@@ -96,6 +137,7 @@
 - `.exe`
 - `.msi`
 - `.zip`
+- `.tar.gz`
 - `.blockmap`
 - `.msix`
 - `.appx`
@@ -146,6 +188,7 @@ Pause 当前只维护一个渠道：`stable`。
 
 1. 执行 `./scripts/check-version-sync.sh`，确保版本元信息一致。
 2. 执行 Windows 打包（按目标架构分别构建）。
+3. 执行 Linux 便携包打包（按目标架构分别构建）。
 4. 执行 `generate-release-manifest.sh`，生成统一清单与校验文件。
    当前推荐固定使用 `stable` 渠道标签，与自动更新地址保持一致。
 5. 人工验收并归档发布目录。
@@ -157,7 +200,8 @@ Pause 当前只维护一个渠道：`stable`。
   - `push` tag `v*`：自动构建并发布 GitHub Release（附带产物与清单）
   - `workflow_dispatch`：可在 GitHub Actions 页面手动触发构建
 - 产出内容：
-  - `pause-windows-x64`：Windows 安装包与校验文件
+  - `pause-windows-x64`：Windows 安装包
+  - `pause-linux-x64`：Linux 便携包（`tar.gz`）
   - `pause-release-manifest`：`release-manifest.txt` + `SHA256SUMS` + `updates.json`
 - Pages：
   - tag 发版成功后自动部署 `updates/stable.json`
@@ -186,5 +230,7 @@ Pause 当前只维护一个渠道：`stable`。
 
 - Windows：安装、启动、清理流程正常，桌面/开始菜单快捷方式正确。
 - Windows：WebView2 策略与目标环境一致（`download`/`browser`/`embed`）。
+- Linux：`tar.gz` 解压后可直接启动 `./Pause`，KDE 下可选使用同目录 `Pause.desktop` 启动。
+- Linux：Arch Linux 至少验证 `gtk3`、`webkit2gtk` 运行时存在时可启动。
 - 校验：`SHA256SUMS` 与实际上传文件一致。
 - 更新：`https://dnsayhey.github.io/pause/updates/stable.json` 可访问且版本号正确。
