@@ -15,7 +15,8 @@ import type {
   RemoteServerInfo,
   UpdateAsset,
   UpdateCheckResult,
-  ActivitySummary
+  ActivitySummary,
+  ForceBreakInput
 } from './types';
 
 function isWebMode(): boolean {
@@ -84,6 +85,7 @@ type Backend = {
   Quit?: () => Promise<void> | void;
   CloseWindow?: () => Promise<void> | void;
   StartBreakNow?: () => Promise<RuntimeState>;
+  StartCustomBreak?: (breakSec: number) => Promise<RuntimeState>;
 };
 
 function getBackend(): Backend | null {
@@ -327,12 +329,21 @@ export async function closeWindow(): Promise<void> {
   await backend.CloseWindow();
 }
 
-export async function forceBreak(): Promise<RuntimeState> {
+export async function forceBreak(input?: ForceBreakInput): Promise<RuntimeState> {
+  const minutes = Math.max(0, Math.trunc(input?.minutes ?? 0));
+  const payload = minutes > 0 ? { minutes } : {};
   if (isWebMode()) {
-    const res = await remoteFetch('/api/force-break', { method: 'POST' });
+    const res = await remoteFetch('/api/force-break', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
     return res.json();
   }
-  return requireBackend().StartBreakNow?.() ?? requireBackend().GetRuntimeState();
+  const backend = requireBackend();
+  if (minutes > 0 && backend.StartCustomBreak) {
+    return backend.StartCustomBreak(minutes * 60);
+  }
+  return backend.StartBreakNow?.() ?? backend.GetRuntimeState();
 }
 
 export async function forceUnlock(): Promise<RuntimeState> {

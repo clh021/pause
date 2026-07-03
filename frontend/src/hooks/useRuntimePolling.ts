@@ -13,12 +13,14 @@ export function useRuntimePolling({ setError, setBootstrapError, clearError }: U
   const mountedRef = useRef(false);
   const hasLoadedRuntimeRef = useRef(false);
   const lastReportedErrorRef = useRef('');
+  const runtimeRef = useRef<RuntimeState | null>(null);
 
   const refreshRuntime = useCallback(async (): Promise<RuntimeState | null> => {
     try {
       const state = await getRuntimeState();
       if (mountedRef.current) {
         setRuntime(state);
+        runtimeRef.current = state;
         setBootstrapError('');
         if (lastReportedErrorRef.current !== '') {
           lastReportedErrorRef.current = '';
@@ -45,22 +47,32 @@ export function useRuntimePolling({ setError, setBootstrapError, clearError }: U
     mountedRef.current = true;
     let timer: number | null = null;
 
-    const startPolling = () => {
-      if (timer !== null) return;
-      timer = window.setInterval(() => {
-        void refreshRuntime();
-      }, 1000);
+    const nextDelayMs = () => {
+      return runtimeRef.current?.currentSession?.status === 'resting' ? 1000 : 5000;
+    };
+
+    const scheduleNextPoll = () => {
+      if (timer !== null || document.visibilityState !== 'visible') {
+        return;
+      }
+      timer = window.setTimeout(async () => {
+        timer = null;
+        await refreshRuntime();
+        scheduleNextPoll();
+      }, nextDelayMs());
     };
 
     const stopPolling = () => {
       if (timer === null) return;
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
       timer = null;
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        startPolling();
+        void refreshRuntime().finally(() => {
+          scheduleNextPoll();
+        });
       } else {
         stopPolling();
       }
@@ -68,7 +80,7 @@ export function useRuntimePolling({ setError, setBootstrapError, clearError }: U
 
     void refreshRuntime();
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    handleVisibilityChange();
+    scheduleNextPoll();
 
     return () => {
       mountedRef.current = false;

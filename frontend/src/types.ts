@@ -73,6 +73,10 @@ export type RuntimeState = {
   effectiveTheme?: 'light' | 'dark';
 };
 
+export type ForceBreakInput = {
+  minutes: number;
+};
+
 export type NotificationCapability = {
   permissionState: 'authorized' | 'not_determined' | 'denied' | 'restricted' | 'unknown';
   canRequest: boolean;
@@ -212,10 +216,19 @@ export type ShotInfo = {
   name: string;
 };
 
+export type ActivityMinute = {
+  minuteStartSec: number;
+  active: boolean;
+  hasScreenshot: boolean;
+  shotName?: string;
+};
+
 export type ActivitySummary = {
-  totalTicks: number;
-  activeSec: number;
-  idleSec: number;
-  ticks: ActivityRecord[];
-  shots: ShotInfo[];
+  fromSec: number;
+  toSec: number;
+  sampleSec: number;
+  totalMinutes: number;
+  activeMinutes: number;
+  idleMinutes: number;
+  minutes: ActivityMinute[];
 };
