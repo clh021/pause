@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,32 +10,33 @@ import (
 	"pause/internal/remoteserver"
 )
 
-type LaunchAction int
+var errHelpRequested = errors.New("help requested")
 
-const (
-	LaunchGUI LaunchAction = iota
-	LaunchHeadless
-	LaunchPrintRemoteInfo
-)
+type LaunchOptions struct {
+	Headless        bool
+	PrintRemoteInfo bool
+}
 
-func ResolveLaunchAction(args []string) (LaunchAction, error) {
+func ResolveLaunchOptions(args []string) (LaunchOptions, error) {
+	opts := LaunchOptions{}
+
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("PAUSE_HEADLESS")), "1") ||
 		strings.EqualFold(strings.TrimSpace(os.Getenv("PAUSE_HEADLESS")), "true") {
-		return LaunchHeadless, nil
+		opts.Headless = true
 	}
 
 	for _, arg := range args {
 		switch strings.TrimSpace(arg) {
 		case "--headless":
-			return LaunchHeadless, nil
+			opts.Headless = true
 		case "--print-remote-info":
-			return LaunchPrintRemoteInfo, nil
+			opts.PrintRemoteInfo = true
 		case "-h", "--help":
-			return LaunchPrintRemoteInfo, fmt.Errorf("help requested")
+			return LaunchOptions{}, errHelpRequested
 		}
 	}
 
-	return LaunchGUI, nil
+	return opts, nil
 }
 
 func PrintRemoteInfo(w io.Writer) error {
