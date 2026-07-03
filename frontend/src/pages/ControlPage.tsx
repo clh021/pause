@@ -25,6 +25,21 @@ type PreviewState = {
   minuteStartSec: number;
 };
 
+type HourDisplayBlock =
+  | {
+      kind: 'hour';
+      hourStartSec: number;
+      minutes: ActivityMinute[];
+      activeMinutes: number;
+      screenshotCount: number;
+    }
+  | {
+      kind: 'empty-range';
+      startHourSec: number;
+      endHourSec: number;
+      hourCount: number;
+    };
+
 function chunkByHour(minutes: ActivityMinute[]): ActivityMinute[][] {
   const hours: ActivityMinute[][] = [];
   for (let i = 0; i < minutes.length; i += 60) {
@@ -33,12 +48,128 @@ function chunkByHour(minutes: ActivityMinute[]): ActivityMinute[][] {
   return hours;
 }
 
+function countActiveMinutes(minutes: ActivityMinute[]): number {
+  let count = 0;
+  for (const minute of minutes) {
+    if (minute.active) {
+      count++;
+    }
+  }
+  return count;
+}
+
+function countScreenshots(minutes: ActivityMinute[]): number {
+  let count = 0;
+  for (const minute of minutes) {
+    if (minute.hasScreenshot) {
+      count++;
+    }
+  }
+  return count;
+}
+
+function isEmptyHour(minutes: ActivityMinute[]): boolean {
+  for (const minute of minutes) {
+    if (minute.active || minute.hasScreenshot) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function buildHourDisplayBlocks(groupedHours: ActivityMinute[][], showEmptyHours: boolean): HourDisplayBlock[] {
+  const blocks: HourDisplayBlock[] = [];
+  let emptyRangeStart = -1;
+
+  const flushEmptyRange = (endExclusive: number) => {
+    if (emptyRangeStart < 0) {
+      return;
+    }
+    const hourCount = endExclusive - emptyRangeStart;
+    if (hourCount >= 2 && !showEmptyHours) {
+      const startHour = groupedHours[emptyRangeStart]?.[0]?.minuteStartSec ?? 0;
+      const endHour = groupedHours[endExclusive - 1]?.[0]?.minuteStartSec ?? startHour;
+      blocks.push({
+        kind: 'empty-range',
+        startHourSec: startHour,
+        endHourSec: endHour,
+        hourCount
+      });
+    } else {
+      for (let i = emptyRangeStart; i < endExclusive; i++) {
+        const minutes = groupedHours[i] ?? [];
+        const hourStartSec = minutes[0]?.minuteStartSec ?? 0;
+        blocks.push({
+          kind: 'hour',
+          hourStartSec,
+          minutes,
+          activeMinutes: 0,
+          screenshotCount: 0
+        });
+      }
+    }
+    emptyRangeStart = -1;
+  };
+
+  for (let i = 0; i < groupedHours.length; i++) {
+    const minutes = groupedHours[i] ?? [];
+    if (isEmptyHour(minutes)) {
+      if (emptyRangeStart < 0) {
+        emptyRangeStart = i;
+      }
+      continue;
+    }
+    flushEmptyRange(i);
+    blocks.push({
+      kind: 'hour',
+      hourStartSec: minutes[0]?.minuteStartSec ?? 0,
+      minutes,
+      activeMinutes: countActiveMinutes(minutes),
+      screenshotCount: countScreenshots(minutes)
+    });
+  }
+  flushEmptyRange(groupedHours.length);
+
+  return blocks;
+}
+
 function formatHourLabel(locale: Locale, minuteStartSec: number): string {
   return new Date(minuteStartSec * 1000).toLocaleString(locale, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit'
   });
+}
+
+function formatHourRangeLabel(locale: Locale, startHourSec: number, endHourSec: number): string {
+  const start = new Date(startHourSec * 1000);
+  const end = new Date((endHourSec + 59 * 60) * 1000);
+  if (locale === 'zh-CN') {
+    return `${start.toLocaleString(locale, {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit'
+    })} - ${end.toLocaleString(locale, {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`;
+  }
+  return `${start.toLocaleString(locale, {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit'
+  })} - ${end.toLocaleString(locale, {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })}`;
+}
+
+function formatCollapsedEmptyHoursText(locale: Locale, hourCount: number): string {
+  return locale === 'zh-CN' ? `已折叠连续 ${hourCount} 个空小时` : `${hourCount} consecutive empty hours collapsed`;
 }
 
 function formatMinuteLabel(locale: Locale, minuteStartSec: number): string {
@@ -62,6 +193,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
   const [activity, setActivity] = useState<ActivitySummary | null>(null);
   const [autoShot, setAutoShot] = useState(false);
   const [selectedShot, setSelectedShot] = useState<PreviewState | null>(null);
+  const [showEmptyHours, setShowEmptyHours] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<{ key: string; text: string; ok: boolean } | null>(null);
@@ -226,6 +358,26 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
   const groupedHours = useMemo(() => {
     return chunkByHour(activity?.minutes ?? []);
   }, [activity]);
+  const collapsibleEmptyHourCount = useMemo(() => {
+    let total = 0;
+    let streak = 0;
+    for (const hour of groupedHours) {
+      if (isEmptyHour(hour)) {
+        streak++;
+        continue;
+      }
+      if (streak >= 2) {
+        total += streak;
+      }
+      streak = 0;
+    }
+    if (streak >= 2) {
+      total += streak;
+    }
+    return total;
+  }, [groupedHours]);
+  const hiddenEmptyHourCount = showEmptyHours ? 0 : collapsibleEmptyHourCount;
+  const displayBlocks = useMemo(() => buildHourDisplayBlocks(groupedHours, showEmptyHours), [groupedHours, showEmptyHours]);
 
   const isResting = runtime?.currentSession?.status === 'resting';
   const btnBase =
@@ -335,7 +487,16 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                   : t(locale, 'loading')}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
+            <div className="flex flex-wrap items-center justify-end gap-3 text-xs text-[var(--text-secondary)]">
+              {collapsibleEmptyHourCount > 0 && (
+                <button
+                  type="button"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--seg-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--control-focus-ring)]"
+                  onClick={() => setShowEmptyHours((prev) => !prev)}
+                >
+                  {showEmptyHours ? t(locale, 'controlHideEmptyHours') : `${t(locale, 'controlShowEmptyHours')} (${hiddenEmptyHourCount})`}
+                </button>
+              )}
               <span className="inline-flex items-center gap-2">
                 <span className="h-3 w-3 rounded-full border border-[var(--control-dot-idle-border)] bg-transparent" />
                 {t(locale, 'controlLegendIdle')}
@@ -357,19 +518,49 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
             <p className="py-6 text-center text-sm text-[var(--text-secondary)]">{t(locale, 'controlTimelineEmpty')}</p>
           ) : (
             <div className="space-y-3">
-              {groupedHours.map((hourMinutes) => {
-                const hourStart = hourMinutes[0]?.minuteStartSec ?? 0;
+              {displayBlocks.map((block) => {
+                if (block.kind === 'empty-range') {
+                  return (
+                    <article
+                      key={`empty-${block.startHourSec}-${block.endHourSec}`}
+                      className="rounded-lg border border-dashed border-[var(--surface-border)] bg-[var(--surface-bg)] px-4 py-3 shadow-[var(--shadow-soft)]"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">
+                            {formatHourRangeLabel(locale, block.startHourSec, block.endHourSec)}
+                          </p>
+                          <p className="mt-1 text-xs text-[var(--text-secondary)]">{formatCollapsedEmptyHoursText(locale, block.hourCount)}</p>
+                        </div>
+                        {!showEmptyHours && (
+                          <button
+                            type="button"
+                            className="inline-flex cursor-pointer items-center rounded-md border border-[var(--surface-border)] bg-[var(--app-bg)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--seg-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--control-focus-ring)]"
+                            onClick={() => setShowEmptyHours(true)}
+                          >
+                            {t(locale, 'controlShowEmptyHours')}
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                }
+
                 return (
                   <article
-                    key={hourStart}
+                    key={block.hourStartSec}
                     className="rounded-lg border border-[var(--surface-border)] bg-[var(--surface-bg)] p-4 shadow-[var(--shadow-soft)]"
                   >
-                    <header className="mb-3 flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-[var(--text-primary)]">{formatHourLabel(locale, hourStart)}</span>
-                      <span className="text-[11px] text-[var(--text-tertiary)]">{t(locale, 'controlHourLabel')}</span>
+                    <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-[var(--text-primary)]">{formatHourLabel(locale, block.hourStartSec)}</span>
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-tertiary)]">
+                        <span>{t(locale, 'controlHourLabel')}</span>
+                        <span>{`${block.activeMinutes}m ${t(locale, 'controlActive')}`}</span>
+                        <span>{`${block.screenshotCount} ${t(locale, 'controlShots')}`}</span>
+                      </div>
                     </header>
                     <div className="grid grid-cols-[repeat(12,minmax(0,1fr))] justify-items-center gap-1.5 md:grid-cols-[repeat(20,minmax(0,1fr))]">
-                      {hourMinutes.map((minute) => {
+                      {block.minutes.map((minute) => {
                         const isSelected = selectedShot?.name === minute.shotName;
                         const className = minute.hasScreenshot
                           ? `border-[var(--control-dot-shot-border)] bg-[var(--control-dot-active)] ring-1 ring-[var(--control-dot-shot-border)] ring-offset-1 ring-offset-[var(--surface-bg)] ${
@@ -386,7 +577,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                             key={minute.minuteStartSec}
                             type="button"
                             disabled={!minute.hasScreenshot}
-                            className={`flex h-6 w-6 items-center justify-center rounded-full border text-[9px] font-semibold leading-none transition-transform duration-150 md:h-6 md:w-6 md:text-[9px] ${
+                            className={`flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-semibold leading-none transition-transform duration-150 md:h-6 md:w-6 md:text-[10px] ${
                               minute.hasScreenshot ? 'cursor-pointer hover:scale-105' : 'cursor-default'
                             } ${className} ${textClassName}`}
                             title={formatMinuteLabel(locale, minute.minuteStartSec)}

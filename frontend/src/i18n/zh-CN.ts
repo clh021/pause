@@ -163,6 +163,8 @@ export const zhCN = {
   controlLegendActive: '活跃',
   controlLegendScreenshot: '有截图',
   controlHourLabel: '每小时 60 分钟',
+  controlShowEmptyHours: '显示空小时',
+  controlHideEmptyHours: '隐藏空小时',
   controlShots: '截图记录',
   controlShotDone: '截图已保存。',
   controlScreenshot: '屏幕截图',

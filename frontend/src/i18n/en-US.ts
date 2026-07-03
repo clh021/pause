@@ -163,6 +163,8 @@ export const enUS = {
   controlLegendActive: 'Active',
   controlLegendScreenshot: 'Screenshot',
   controlHourLabel: '60 minutes per hour',
+  controlShowEmptyHours: 'Show Empty Hours',
+  controlHideEmptyHours: 'Hide Empty Hours',
   controlShots: 'Screenshots',
   controlShotDone: 'Screenshot taken.',
   controlScreenshot: 'Screenshot',
