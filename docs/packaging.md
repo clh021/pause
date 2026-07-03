@@ -96,7 +96,7 @@
 前置依赖：
 
 - `gtk3` / `libgtk-3-dev`
-- `webkit2gtk` 运行时，以及构建机上的 WebKitGTK 开发包
+- `webkit2gtk-4.1` 运行时（Arch Linux 当前包名），以及构建机上的 WebKitGTK 开发包
 - `wails` CLI（缺失时脚本会自动回退到 `go run github.com/wailsapp/wails/v2/cmd/wails@v2.10.2`）
 
 常用参数：
@@ -231,6 +231,6 @@ Pause 当前只维护一个渠道：`stable`。
 - Windows：安装、启动、清理流程正常，桌面/开始菜单快捷方式正确。
 - Windows：WebView2 策略与目标环境一致（`download`/`browser`/`embed`）。
 - Linux：`tar.gz` 解压后可直接启动 `./Pause`，KDE 下可选使用同目录 `Pause.desktop` 启动。
-- Linux：Arch Linux 至少验证 `gtk3`、`webkit2gtk` 运行时存在时可启动。
+- Linux：Arch Linux 至少验证 `gtk3`、`webkit2gtk-4.1` 运行时存在时可启动。
 - 校验：`SHA256SUMS` 与实际上传文件一致。
 - 更新：`https://dnsayhey.github.io/pause/updates/stable.json` 可访问且版本号正确。

@@ -240,7 +240,7 @@ Arch Linux / KDE runtime dependencies
 -------------------------------------
 If launch fails because shared libraries are missing, install:
 
-  sudo pacman -S --needed gtk3 webkit2gtk
+  sudo pacman -S --needed gtk3 webkit2gtk-4.1
 
 Desktop launcher
 ----------------
