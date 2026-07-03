@@ -970,13 +970,35 @@ func TestHandleQuit(t *testing.T) {
 func TestHandleRuntimeState(t *testing.T) {
 	server := newTestServerWithServices(t, &fakeEngine{
 		runtimeState: state.RuntimeState{
+			Now:           time.Date(2026, 6, 30, 10, 3, 0, 0, time.UTC),
 			GlobalEnabled: true,
 			CurrentSession: &state.BreakSessionView{
 				Status:       "resting",
+				Reasons:      []int64{1},
 				StartedAt:    time.Date(2026, 6, 30, 10, 0, 0, 0, time.UTC),
 				EndsAt:       time.Date(2026, 6, 30, 10, 5, 0, 0, time.UTC),
 				RemainingSec: 120,
+				CanSkip:      true,
+				CanPostpone:  true,
 			},
+			Reminders: []state.ReminderRuntime{{
+				ID:           1,
+				Name:         "Eye",
+				ReminderType: "rest",
+				Enabled:      true,
+				Paused:       false,
+				NextInSec:    45,
+				IntervalSec:  1200,
+				BreakSec:     20,
+			}},
+			NextBreakReason:    []int64{1},
+			TimerMode:          "idle_pause",
+			IdleThresholdSec:   60,
+			LastTickActive:     true,
+			CurrentIdleSec:     0,
+			ShowTrayCountdown:  true,
+			OverlaySkipAllowed: true,
+			OverlayNative:      false,
 		},
 	}, Services{})
 
@@ -987,11 +1009,17 @@ func TestHandleRuntimeState(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
-	var resp statusResponse
+	var resp RuntimeState
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("Unmarshal() err=%v", err)
 	}
-	if resp.Status != "resting" || resp.RemainingSec != 120 {
+	if resp.CurrentSession == nil || resp.CurrentSession.Status != "resting" || resp.CurrentSession.RemainingSec != 120 {
+		t.Fatalf("unexpected current session %+v", resp.CurrentSession)
+	}
+	if resp.EffectiveLanguage == "" || resp.EffectiveTheme == "" {
+		t.Fatalf("expected effective language/theme, got %+v", resp)
+	}
+	if len(resp.Reminders) != 1 || resp.Reminders[0].Name != "Eye" {
 		t.Fatalf("unexpected response %+v", resp)
 	}
 }
@@ -1013,6 +1041,7 @@ func TestHandleMethodNotAllowed_AllEndpoints(t *testing.T) {
 		{"/api/resume with wrong method", http.MethodGet, "/api/resume", ""},
 		{"/api/trigger-break with wrong method", http.MethodGet, "/api/trigger-break", ""},
 		{"/api/skip-break with wrong method", http.MethodGet, "/api/skip-break", ""},
+		{"/api/postpone-break with wrong method", http.MethodGet, "/api/postpone-break", ""},
 		{"/api/runtime with wrong method", http.MethodPost, "/api/runtime", ""},
 		{"/api/quit with wrong method", http.MethodGet, "/api/quit", ""},
 		{"/api/reminders with wrong method", http.MethodPost, "/api/reminders", ""},

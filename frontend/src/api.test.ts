@@ -329,6 +329,20 @@ describe('API functions in web mode', () => {
     });
   });
 
+  describe('postponeCurrentBreak', () => {
+    it('calls POST /api/postpone-break and returns parsed response', async () => {
+      fetchSpy.mockResolvedValue(createMockResponse(mockRuntimeState));
+
+      const result = await api.postponeCurrentBreak();
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/postpone-break',
+        expect.objectContaining({ credentials: 'same-origin', method: 'POST' })
+      );
+      expect(result).toEqual(mockRuntimeState);
+    });
+  });
+
   describe('getNotificationCapability', () => {
     it('calls GET /api/notification/capability and returns parsed response', async () => {
       const data = { permissionState: 'authorized', canRequest: false, canOpenSettings: true } as const;

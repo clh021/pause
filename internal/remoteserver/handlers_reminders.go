@@ -103,7 +103,7 @@ func (s *Server) handlePauseReminder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logx.Infof("remote.pause_reminder id=%d", id)
-	writeJSON(w, http.StatusOK, newStatusResponse(rs))
+	s.writeRuntimeState(w, http.StatusOK, rs, r.Context())
 }
 
 func (s *Server) handleResumeReminder(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +123,7 @@ func (s *Server) handleResumeReminder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logx.Infof("remote.resume_reminder id=%d", id)
-	writeJSON(w, http.StatusOK, newStatusResponse(rs))
+	s.writeRuntimeState(w, http.StatusOK, rs, r.Context())
 }
 
 func reminderToDTO(r reminderdomain.Reminder) ReminderConfig {

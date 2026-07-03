@@ -274,7 +274,7 @@ export async function skipCurrentBreak(): Promise<RuntimeState> {
 
 export async function postponeCurrentBreak(): Promise<RuntimeState> {
   if (isWebMode()) {
-    const res = await remoteFetch('/api/skip-break', { method: 'POST' });
+    const res = await remoteFetch('/api/postpone-break', { method: 'POST' });
     return res.json();
   }
   return requireBackend().PostponeCurrentBreak();

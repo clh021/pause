@@ -48,7 +48,7 @@ func (s *Server) handlePause(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	writeJSON(w, http.StatusOK, newStatusResponse(s.services.Engine.Pause(s.now())))
+	s.writeRuntimeState(w, http.StatusOK, s.services.Engine.Pause(s.now()), r.Context())
 }
 
 func (s *Server) handleResume(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +56,7 @@ func (s *Server) handleResume(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	writeJSON(w, http.StatusOK, newStatusResponse(s.services.Engine.Resume(s.now())))
+	s.writeRuntimeState(w, http.StatusOK, s.services.Engine.Resume(s.now()), r.Context())
 }
 
 func (s *Server) handleSkipBreak(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +69,20 @@ func (s *Server) handleSkipBreak(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, newStatusResponse(state))
+	s.writeRuntimeState(w, http.StatusOK, state, r.Context())
+}
+
+func (s *Server) handlePostponeBreak(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	state, err := s.services.Engine.PostponeCurrentBreak(s.now())
+	if err != nil {
+		writeServerError(w, err)
+		return
+	}
+	s.writeRuntimeState(w, http.StatusOK, state, r.Context())
 }
 
 func (s *Server) handleTriggerBreak(w http.ResponseWriter, r *http.Request) {
@@ -186,7 +199,7 @@ func (s *Server) handleForceUnlock(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, newStatusResponse(state))
+	s.writeRuntimeState(w, http.StatusOK, state, r.Context())
 }
 
 func (s *Server) handleForceBreak(w http.ResponseWriter, r *http.Request) {
@@ -199,7 +212,7 @@ func (s *Server) handleForceBreak(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, newStatusResponse(state))
+	s.writeRuntimeState(w, http.StatusOK, state, r.Context())
 }
 
 func (s *Server) handleQuit(w http.ResponseWriter, r *http.Request) {
@@ -218,7 +231,7 @@ func (s *Server) handleRuntimeState(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	writeJSON(w, http.StatusOK, newStatusResponse(s.services.Engine.GetRuntimeState(s.now())))
+	s.writeRuntimeState(w, http.StatusOK, s.services.Engine.GetRuntimeState(s.now()), r.Context())
 }
 
 func decodeJSONBody(r *http.Request, dest any) error {

@@ -137,6 +137,7 @@ func (s *Server) routes() http.Handler {
 	protected.HandleFunc("/api/status", s.handleStatus)
 	protected.HandleFunc("/api/trigger-break", s.handleTriggerBreak)
 	protected.HandleFunc("/api/skip-break", s.handleSkipBreak)
+	protected.HandleFunc("/api/postpone-break", s.handlePostponeBreak)
 	protected.HandleFunc("/api/pause", s.handlePause)
 	protected.HandleFunc("/api/resume", s.handleResume)
 	protected.HandleFunc("/api/reminders", s.handleListReminders)

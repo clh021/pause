@@ -42,15 +42,15 @@ func TestHandleForceBreak_Success(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	var resp statusResponse
+	var resp RuntimeState
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("json unmarshal: %v", err)
 	}
-	if resp.Status != "resting" {
-		t.Fatalf("expected status 'resting', got %q", resp.Status)
+	if resp.CurrentSession == nil || resp.CurrentSession.Status != "resting" {
+		t.Fatalf("expected status 'resting', got %+v", resp.CurrentSession)
 	}
-	if resp.RemainingSec != 60 {
-		t.Fatalf("expected remainingSec 60, got %d", resp.RemainingSec)
+	if resp.CurrentSession.RemainingSec != 60 {
+		t.Fatalf("expected remainingSec 60, got %d", resp.CurrentSession.RemainingSec)
 	}
 }
 
