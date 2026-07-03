@@ -232,11 +232,11 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
     'inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-transparent px-4 py-2.5 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--control-focus-ring)] disabled:cursor-not-allowed disabled:opacity-45';
   const btnPrimary = `${btnBase} bg-[var(--accent-bg)] text-white hover:brightness-110`;
   const btnDanger = `${btnBase} bg-[var(--danger-bg)] text-white hover:bg-[var(--danger-bg-hover)]`;
-  const btnGhost = `${btnBase} border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-primary)] hover:bg-[var(--seg-hover-bg)]`;
+  const btnGhost = `${btnBase} border-[var(--surface-border)] bg-[var(--app-bg)] text-[var(--text-primary)] hover:bg-[var(--seg-hover-bg)]`;
 
   return (
     <section className="mt-3 space-y-5 px-2 pb-4 sm:px-3">
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-3 shadow-[var(--shadow-subtle)]">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--surface-border)] bg-[var(--app-bg)] px-4 py-3 shadow-[var(--shadow-subtle)]">
         <div className="flex items-center gap-3">
           <div
             className={`h-3 w-3 shrink-0 rounded-full ${
@@ -259,7 +259,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
       </div>
 
       <div className="space-y-4">
-        <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
+        <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--app-bg)] p-4 shadow-[var(--shadow-subtle)]">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlActions')}</h2>
@@ -313,7 +313,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
             >
               {t(locale, 'controlManualShot')}
             </button>
-            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-[var(--card-border)] bg-[var(--surface-muted)] px-3 py-2">
+            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-[var(--surface-border)] bg-[var(--surface-bg)] px-3 py-2">
               <input
                 type="checkbox"
                 className="h-4 w-4 accent-[var(--accent-bg)]"
@@ -325,7 +325,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
           </div>
         </div>
 
-        <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
+        <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--app-bg)] p-4 shadow-[var(--shadow-subtle)]">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlTimeline')}</h2>
@@ -345,7 +345,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                 {t(locale, 'controlLegendActive')}
               </span>
               <span className="inline-flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full border border-[var(--control-dot-shot-border)] bg-[var(--control-dot-active)] ring-1 ring-[var(--control-dot-shot-border)] ring-offset-1 ring-offset-[var(--card-bg)]" />
+                <span className="h-3 w-3 rounded-full border border-[var(--control-dot-shot-border)] bg-[var(--control-dot-active)] ring-1 ring-[var(--control-dot-shot-border)] ring-offset-1 ring-offset-[var(--app-bg)]" />
                 {t(locale, 'controlLegendScreenshot')}
               </span>
             </div>
@@ -362,7 +362,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                 return (
                   <article
                     key={hourStart}
-                    className="rounded-lg border border-[var(--card-border)] bg-[var(--surface-muted)] p-4 shadow-[var(--shadow-soft)]"
+                    className="rounded-lg border border-[var(--surface-border)] bg-[var(--surface-bg)] p-4 shadow-[var(--shadow-soft)]"
                   >
                     <header className="mb-3 flex items-center justify-between gap-2">
                       <span className="text-xs font-semibold text-[var(--text-primary)]">{formatHourLabel(locale, hourStart)}</span>
@@ -372,7 +372,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                       {hourMinutes.map((minute) => {
                         const isSelected = selectedShot?.name === minute.shotName;
                         const className = minute.hasScreenshot
-                          ? `border-[var(--control-dot-shot-border)] bg-[var(--control-dot-active)] ring-1 ring-[var(--control-dot-shot-border)] ring-offset-1 ring-offset-[var(--surface-muted)] ${
+                          ? `border-[var(--control-dot-shot-border)] bg-[var(--control-dot-active)] ring-1 ring-[var(--control-dot-shot-border)] ring-offset-1 ring-offset-[var(--surface-bg)] ${
                               isSelected ? 'scale-[1.02] shadow-[0_0_0_1px_var(--control-dot-shot-border)]' : ''
                             }`
                           : minute.active
@@ -386,7 +386,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                             key={minute.minuteStartSec}
                             type="button"
                             disabled={!minute.hasScreenshot}
-                            className={`flex h-6 w-6 items-center justify-center rounded-full border text-[8px] font-semibold leading-none transition-transform duration-150 md:h-5 md:w-5 md:text-[7px] ${
+                            className={`flex h-6 w-6 items-center justify-center rounded-full border text-[9px] font-semibold leading-none transition-transform duration-150 md:h-6 md:w-6 md:text-[9px] ${
                               minute.hasScreenshot ? 'cursor-pointer hover:scale-105' : 'cursor-default'
                             } ${className} ${textClassName}`}
                             title={formatMinuteLabel(locale, minute.minuteStartSec)}
@@ -409,7 +409,7 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
         </div>
 
         {manualPreviewUrl && (
-          <section className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
+          <section className="rounded-xl border border-[var(--surface-border)] bg-[var(--app-bg)] p-4 shadow-[var(--shadow-subtle)]">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlManualShot')}</h3>
               <button
@@ -426,17 +426,17 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                 {t(locale, 'close')}
               </button>
             </div>
-            <div className="rounded-lg bg-[var(--surface-muted)] p-2">
+            <div className="rounded-lg bg-[var(--surface-bg)] p-2">
               <img
                 src={manualPreviewUrl}
                 alt="manual screenshot"
-                className="max-h-[22rem] w-full rounded-lg bg-[var(--surface-muted)] object-contain"
+                className="max-h-[22rem] w-full rounded-lg bg-[var(--surface-bg)] object-contain"
               />
             </div>
           </section>
         )}
 
-        <section className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-subtle)]">
+        <section className="rounded-xl border border-[var(--surface-border)] bg-[var(--app-bg)] p-4 shadow-[var(--shadow-subtle)]">
           <div className="mb-3">
             <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t(locale, 'controlScreenshot')}</h3>
             <p className="mt-1 text-xs text-[var(--text-secondary)]">
@@ -449,17 +449,17 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                 {t(locale, 'controlScreenshotError')}
               </p>
             ) : (
-              <div className="rounded-lg bg-[var(--surface-muted)] p-2">
+              <div className="rounded-lg bg-[var(--surface-bg)] p-2">
                 <img
                   src={`${getShotUrl(selectedShot.name, assetAccess)}${assetAccess.accessToken ? '&' : '?'}t=${selectedShot.minuteStartSec}`}
                   alt={selectedShot.name}
-                  className="max-h-[32rem] w-full rounded-lg bg-[var(--surface-muted)] object-contain"
+                  className="max-h-[32rem] w-full rounded-lg bg-[var(--surface-bg)] object-contain"
                   onError={() => setPreviewBroken(true)}
                 />
               </div>
             )
           ) : (
-            <div className="rounded-lg border border-dashed border-[var(--card-border)] bg-[var(--surface-muted)] px-3 py-10 text-center text-sm text-[var(--text-secondary)]">
+            <div className="rounded-lg border border-dashed border-[var(--surface-border)] bg-[var(--surface-bg)] px-3 py-10 text-center text-sm text-[var(--text-secondary)]">
               {t(locale, 'controlPreviewEmpty')}
             </div>
           )}
