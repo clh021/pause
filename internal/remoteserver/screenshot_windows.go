@@ -11,7 +11,6 @@ import (
 	"image/png"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"syscall"
 	"unsafe"
 )
