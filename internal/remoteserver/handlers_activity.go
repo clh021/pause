@@ -16,9 +16,9 @@ func (s *Server) handleGetActivity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Default: last 48 hours
+	// Default: last ~48 hours aligned to hour boundary
 	to := time.Now().Unix()
-	from := to - activityMaxWindowSec + 60
+	from := (to - activityMaxWindowSec) - ((to - activityMaxWindowSec) % 3600)
 
 	if f := r.URL.Query().Get("from"); f != "" {
 		if v, err := strconv.ParseInt(f, 10, 64); err == nil {
@@ -33,8 +33,12 @@ func (s *Server) handleGetActivity(w http.ResponseWriter, r *http.Request) {
 	if to < from {
 		from, to = to, from
 	}
-	if to-from > activityMaxWindowSec {
-		from = to - activityMaxWindowSec + 60
+	// Note: hour-boundary alignment may extend the default window up to
+	// activityMaxWindowSec + 3599 (≈ 48h59m59s), which is fine for "~48h".
+	if to-from > activityMaxWindowSec+3599 {
+		// Clamp, then re-align so the window stays bounded *and* hour-aligned.
+		from = to - activityMaxWindowSec
+		from = from - (from % 3600) // re-align; may add at most 3599s extra — still ≤ 48h59m59s
 	}
 
 	if s.activity == nil {

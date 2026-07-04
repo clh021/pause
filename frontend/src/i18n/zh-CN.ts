@@ -157,6 +157,7 @@ export const zhCN = {
   controlAutoShotOff: '自动截图已关闭',
   controlTimeline: '最近 48 小时活动点阵',
   controlTimelineEmpty: '暂无活动数据，Pause 运行一段时间后会自动生成。',
+  controlAwaitingData: '等待数据…',
   controlActive: '活跃',
   controlIdle: '空闲',
   controlLegendIdle: '空闲',

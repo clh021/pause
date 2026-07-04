@@ -393,7 +393,10 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
     return total;
   }, [groupedHours]);
   const hiddenEmptyHourCount = showEmptyHours ? 0 : collapsibleEmptyHourCount;
-  const displayBlocks = useMemo(() => buildHourDisplayBlocks(groupedHours, showEmptyHours), [groupedHours, showEmptyHours]);
+  const displayBlocks = useMemo(() => {
+    const blocks = buildHourDisplayBlocks(groupedHours, showEmptyHours);
+    return [...blocks].reverse();
+  }, [groupedHours, showEmptyHours]);
 
   const isResting = runtime?.currentSession?.status === 'resting';
   const btnBase =
@@ -562,6 +565,38 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                   );
                 }
 
+                // Infer latest hour from server data to avoid client/server clock skew
+                const minutesArr = activity?.minutes ?? [];
+                const latestMinute = minutesArr.length > 0
+                  ? minutesArr[minutesArr.length - 1].minuteStartSec
+                  : Math.floor(Date.now() / 1000);
+                const currentHourStart = latestMinute - (latestMinute % 3600);
+                const currentMinuteStart = latestMinute; // minuteStartSec is already minute-aligned
+                const isCurrentHour = block.hourStartSec === currentHourStart;
+                const visibleMinutes = isCurrentHour
+                  ? block.minutes.filter(m => m.minuteStartSec < currentMinuteStart)
+                  : block.minutes;
+                const displayActiveMinutes = isCurrentHour ? countActiveMinutes(visibleMinutes) : block.activeMinutes;
+                const displayScreenshotCount = isCurrentHour ? countScreenshots(visibleMinutes) : block.screenshotCount;
+
+                if (isCurrentHour && visibleMinutes.length === 0) {
+                  // Show a placeholder card when the current hour has no completed minute yet
+                  return (
+                    <article
+                      key={block.hourStartSec}
+                      className="rounded-lg border border-[var(--surface-border)] bg-[var(--surface-bg)] p-4 shadow-[var(--shadow-soft)]"
+                    >
+                      <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-[var(--text-primary)]">{formatHourLabel(locale, block.hourStartSec)}</span>
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-tertiary)]">
+                          <span>{t(locale, 'controlHourLabel')}</span>
+                        </div>
+                      </header>
+                      <p className="py-3 text-center text-xs text-[var(--text-tertiary)]">{t(locale, 'controlAwaitingData')}</p>
+                    </article>
+                  );
+                }
+
                 return (
                   <article
                     key={block.hourStartSec}
@@ -571,12 +606,12 @@ export function ControlPage({ locale, runtime, onRuntimeRefresh }: ControlPagePr
                       <span className="text-xs font-semibold text-[var(--text-primary)]">{formatHourLabel(locale, block.hourStartSec)}</span>
                       <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-tertiary)]">
                         <span>{t(locale, 'controlHourLabel')}</span>
-                        <span>{`${block.activeMinutes}m ${t(locale, 'controlActive')}`}</span>
-                        <span>{`${block.screenshotCount} ${t(locale, 'controlShots')}`}</span>
+                        <span>{`${displayActiveMinutes}m ${t(locale, 'controlActive')}`}</span>
+                        <span>{`${displayScreenshotCount} ${t(locale, 'controlShots')}`}</span>
                       </div>
                     </header>
                     <div className="grid grid-cols-[repeat(12,minmax(0,1fr))] justify-items-center gap-1.5 md:grid-cols-[repeat(20,minmax(0,1fr))]">
-                      {block.minutes.map((minute) => {
+                      {visibleMinutes.map((minute) => {
                         const isSelected = selectedShot?.name === minute.shotName;
                         const className = minute.hasScreenshot
                           ? `border-[var(--control-dot-shot-border)] bg-[var(--control-dot-active)] ring-1 ring-[var(--control-dot-shot-border)] ring-offset-1 ring-offset-[var(--surface-bg)] ${

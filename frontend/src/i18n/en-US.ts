@@ -157,6 +157,7 @@ export const enUS = {
   controlAutoShotOff: 'Auto screenshot off.',
   controlTimeline: 'Last 48 Hours Activity',
   controlTimelineEmpty: 'No activity data yet. It will appear after Pause has been running for a while.',
+  controlAwaitingData: 'Waiting for data…',
   controlActive: 'active',
   controlIdle: 'idle',
   controlLegendIdle: 'Idle',
