@@ -99,8 +99,8 @@ func (s *Server) handleServeShot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Prevent path traversal: only allow filenames matching shot-*.jpg
-	if !strings.HasPrefix(name, "shot-") || !strings.HasSuffix(name, ".jpg") || strings.Contains(name, "/") || strings.Contains(name, "..") {
+	// Prevent path traversal: only allow filenames matching Pause_Screenshot_*.png
+	if !strings.HasPrefix(name, "Pause_Screenshot_") || !strings.HasSuffix(name, ".png") || strings.Contains(name, "/") || strings.Contains(name, "..") {
 		writeJSONError(w, http.StatusBadRequest, "invalid shot name")
 		return
 	}

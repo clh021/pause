@@ -378,8 +378,8 @@ func TestHandleGetActivity_WithRecorder(t *testing.T) {
 func TestHandleServeShot_Success(t *testing.T) {
 	server := newTestServer(t, &fakeEngine{})
 	shotDir := t.TempDir()
-	shotPath := filepath.Join(shotDir, "shot-2026-07-01_100000.jpg")
-	if err := os.WriteFile(shotPath, []byte("fake-jpeg"), 0o644); err != nil {
+	shotPath := filepath.Join(shotDir, "Pause_Screenshot_2026-07-01_100000.png")
+	if err := os.WriteFile(shotPath, []byte("fake-png"), 0o644); err != nil {
 		t.Fatalf("WriteFile err=%v", err)
 	}
 
@@ -388,14 +388,14 @@ func TestHandleServeShot_Success(t *testing.T) {
 	testScreenshotDir = func() string { return shotDir }
 	defer func() { testScreenshotDir = origScreenshotDir }()
 
-	req := httptest.NewRequest(http.MethodGet, "/shots/shot-2026-07-01_100000.jpg", nil)
+	req := httptest.NewRequest(http.MethodGet, "/shots/Pause_Screenshot_2026-07-01_100000.png", nil)
 	rec := httptest.NewRecorder()
 	server.routes().ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
-	if rec.Body.String() != "fake-jpeg" {
+	if rec.Body.String() != "fake-png" {
 		t.Fatalf("unexpected body: %q", rec.Body.String())
 	}
 }
@@ -412,9 +412,9 @@ func TestHandleServeShot_InvalidName(t *testing.T) {
 		path string
 		want int // expected status code range
 	}{
-		{"no shot prefix", "/shots/random.jpg", 400},
+		{"no shot prefix", "/shots/random.png", 400},
 		{"path traversal", "/shots/../../etc/passwd", 307}, // Go 1.22+ mux redirects cleaned paths
-		{"wrong extension", "/shots/shot-test.png", 400},
+		{"wrong extension", "/shots/Pause_Screenshot_test.jpg", 400},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -491,63 +491,15 @@ func TestHandleAutoScreenshotSetting_POST(t *testing.T) {
 	}
 }
 
-// ---- JPEG compression tests ----
-
-func TestGoJPEGCompress(t *testing.T) {
-	img := image.NewRGBA(image.Rect(0, 0, 10, 10))
-	for x := 0; x < 10; x++ {
-		for y := 0; y < 10; y++ {
-			img.Set(x, y, color.RGBA{R: uint8(x * 25), G: uint8(y * 25), B: 128, A: 255})
-		}
-	}
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
-		t.Fatalf("png encode: %v", err)
-	}
-
-	outPath := filepath.Join(t.TempDir(), "test-output.jpg")
-	if err := goJPEGCompress(buf.Bytes(), outPath, 50); err != nil {
-		t.Fatalf("goJPEGCompress err=%v", err)
-	}
-	if _, err := os.Stat(outPath); os.IsNotExist(err) {
-		t.Fatal("output file was not created")
-	}
-	info, _ := os.Stat(outPath)
-	if info.Size() == 0 {
-		t.Fatal("output file is empty")
-	}
-}
-
-func TestCompressPNGToJPEGFile_Fallback(t *testing.T) {
-	img := image.NewRGBA(image.Rect(0, 0, 5, 5))
-	for x := 0; x < 5; x++ {
-		for y := 0; y < 5; y++ {
-			img.Set(x, y, color.RGBA{R: 255, G: 0, B: 0, A: 255})
-		}
-	}
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
-		t.Fatalf("png encode: %v", err)
-	}
-
-	outPath := filepath.Join(t.TempDir(), "fallback-test.jpg")
-	if err := compressPNGToJPEGFile(buf.Bytes(), outPath, 55); err != nil {
-		t.Fatalf("compressPNGToJPEGFile err=%v", err)
-	}
-	if _, err := os.Stat(outPath); os.IsNotExist(err) {
-		t.Fatal("output file was not created")
-	}
-}
-
 // ---- Screenshot list test ----
 
 func TestListShotsInDir(t *testing.T) {
 	dir := t.TempDir()
 	// Use names that include timestamps
 	files := []string{
-		"shot-2026-07-01_100000.jpg",
-		"shot-2026-07-01_110000.jpg",
-		"shot-2026-07-01_120000.jpg",
+		"Pause_Screenshot_2026-07-01_100000.png",
+		"Pause_Screenshot_2026-07-01_110000.png",
+		"Pause_Screenshot_2026-07-01_120000.png",
 		"not-a-shot.png",
 	}
 	for _, f := range files {
@@ -555,8 +507,8 @@ func TestListShotsInDir(t *testing.T) {
 	}
 
 	// Parse timestamps from the filenames for range
-	from := parseShotTimestamp("shot-2026-07-01_100000.jpg")
-	to := parseShotTimestamp("shot-2026-07-01_120000.jpg")
+	from := parseShotTimestamp("Pause_Screenshot_2026-07-01_100000.png")
+	to := parseShotTimestamp("Pause_Screenshot_2026-07-01_120000.png")
 	if from == 0 || to == 0 {
 		t.Fatal("failed to parse reference timestamps")
 	}
@@ -566,7 +518,7 @@ func TestListShotsInDir(t *testing.T) {
 	if len(shots) != 3 {
 		t.Fatalf("expected 3 shots, got %d", len(shots))
 	}
-	if shots[0].Name != "shot-2026-07-01_100000.jpg" {
+	if shots[0].Name != "Pause_Screenshot_2026-07-01_100000.png" {
 		t.Fatalf("expected first shot to be 100000, got %s", shots[0].Name)
 	}
 }
@@ -579,7 +531,7 @@ func TestNewRoutesAreRegistered(t *testing.T) {
 		"/api/force-break",
 		"/api/force-unlock",
 		"/api/activity",
-		"/shots/test.jpg",
+		"/shots/Pause_Screenshot_test.png",
 		"/api/settings/auto-screenshot",
 		"/api/screenshots",
 	}

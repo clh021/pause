@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -28,7 +27,7 @@ type ActivityRecord struct {
 	IdleSec   int   `json:"i"` // current idle seconds at time of tick
 }
 
-// ShotInfo describes a saved screenshot JPEG.
+// ShotInfo describes a saved screenshot.
 type ShotInfo struct {
 	Timestamp int64  `json:"t"`
 	Path      string `json:"path"` // relative URL path for serving
@@ -145,17 +144,21 @@ func (r *ActivityRecorder) nextAutoScreenshotMinuteLocked(rec ActivityRecord) in
 }
 
 func (r *ActivityRecorder) tryAutoScreenshot(ctx context.Context, minuteStart time.Time) {
-	result, err := r.screenshotSvc.Capture(ctx)
+	if r.screenshotSvc == nil || r.screenshotSvc.capturer == nil {
+		logx.Warnf("activity.screenshot_service_unavailable")
+		return
+	}
+	png, err := r.screenshotSvc.capturer.Capture(ctx)
 	if err != nil {
 		logx.Warnf("activity.auto_screenshot_err err=%v", err)
 		return
 	}
-	if _, err := writeMinuteShot(r.screenshotDir, result.PNG, minuteStart); err != nil {
-		logx.Warnf("activity.auto_screenshot_compress_err err=%v", err)
+	result, err := storeScreenshotBytes(r.screenshotDir, png, minuteStart)
+	if err != nil {
+		logx.Warnf("activity.auto_screenshot_store_err err=%v", err)
 		return
 	}
-	_ = os.Remove(result.LatestPath) // we keep the JPEG, remove the full-quality PNG
-	logx.Infof("activity.auto_screenshot saved=%s", screenshotJPEGName(minuteStart))
+	logx.Infof("activity.auto_screenshot saved=%s", filepath.Base(result.HistoryPath))
 }
 
 // GetActivity returns minute buckets and screenshot availability for a time range.
@@ -246,7 +249,7 @@ func (r *ActivityRecorder) listShots(fromT, toT int64) []ShotInfo {
 	}
 	var shots []ShotInfo
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasPrefix(e.Name(), "shot-") || !strings.HasSuffix(e.Name(), ".jpg") {
+		if e.IsDir() || !strings.HasPrefix(e.Name(), "Pause_Screenshot_") || !strings.HasSuffix(e.Name(), ".png") {
 			continue
 		}
 		ts := parseShotTimestamp(e.Name())
@@ -337,10 +340,10 @@ func (r *ActivityRecorder) pruneOldFiles() {
 			_ = os.Remove(fi.path)
 		}
 	}
-	// Also prune old JPEG shots
+	// Also prune old screenshots
 	entries, _ := os.ReadDir(r.screenshotDir)
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasPrefix(e.Name(), "shot-") || !strings.HasSuffix(e.Name(), ".jpg") {
+		if e.IsDir() || !strings.HasPrefix(e.Name(), "Pause_Screenshot_") || !strings.HasSuffix(e.Name(), ".png") {
 			continue
 		}
 		info, err := e.Info()
@@ -419,10 +422,10 @@ func listShotsInDir(dir string, fromT, toT int64) []ShotInfo {
 	}
 	var shots []ShotInfo
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasPrefix(e.Name(), "shot-") || !strings.HasSuffix(e.Name(), ".jpg") {
+		if e.IsDir() || !strings.HasPrefix(e.Name(), "Pause_Screenshot_") || !strings.HasSuffix(e.Name(), ".png") {
 			continue
 		}
-		// Parse timestamp from filename: shot-YYYY-MM-DD_HHMMSS.jpg
+		// Parse timestamp from filename: Pause_Screenshot_YYYY-MM-DD_HHMMSS.png
 		ts := parseShotTimestamp(e.Name())
 		if ts == 0 {
 			continue
@@ -444,11 +447,11 @@ func listShotsInDir(dir string, fromT, toT int64) []ShotInfo {
 	return shots
 }
 
-// parseShotTimestamp extracts the unix timestamp from a shot filename.
-// Format: shot-2006-01-02_150405.jpg  (uses local time, matching screenshotJPEGName)
+// parseShotTimestamp extracts the unix timestamp from a screenshot filename.
+// Format: Pause_Screenshot_2006-01-02_150405.png  (uses local time)
 func parseShotTimestamp(name string) int64 {
-	// Remove prefix "shot-" and suffix ".jpg"
-	mid := strings.TrimSuffix(strings.TrimPrefix(name, "shot-"), ".jpg")
+	// Remove prefix "Pause_Screenshot_" and suffix ".png"
+	mid := strings.TrimSuffix(strings.TrimPrefix(name, "Pause_Screenshot_"), ".png")
 	t, err := time.ParseInLocation("2006-01-02_150405", mid, time.Local)
 	if err != nil {
 		return 0
@@ -456,42 +459,3 @@ func parseShotTimestamp(name string) int64 {
 	return t.Unix()
 }
 
-func screenshotJPEGName(now time.Time) string {
-	return fmt.Sprintf("shot-%s.jpg", now.Truncate(time.Minute).Format("2006-01-02_150405"))
-}
-
-func writeMinuteShot(dir string, pngData []byte, minuteStart time.Time) (string, error) {
-	jpgPath := filepath.Join(dir, screenshotJPEGName(minuteStart))
-	if err := compressPNGToJPEGFile(pngData, jpgPath, 55); err != nil {
-		return "", err
-	}
-	return jpgPath, nil
-}
-
-// compressPNGToJPEGFile decodes PNG bytes and re-encodes as JPEG at the given quality (1-100).
-// Uses ImageMagick convert if available, otherwise falls back to Go stdlib.
-func compressPNGToJPEGFile(pngData []byte, outputPath string, quality int) error {
-	if quality < 1 {
-		quality = 1
-	}
-	if quality > 100 {
-		quality = 100
-	}
-
-	// Try ImageMagick first for best compression
-	if cmdPath, err := exec.LookPath("convert"); err == nil {
-		tmpPath := outputPath + ".tmp.png"
-		if err := os.WriteFile(tmpPath, pngData, 0o644); err != nil {
-			return err
-		}
-		defer os.Remove(tmpPath)
-		cmd := exec.Command(cmdPath, tmpPath, "-quality", fmt.Sprintf("%d", quality), outputPath)
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("imagemagick compress failed: %w: %s", err, string(output))
-		}
-		return nil
-	}
-
-	// Fallback: Go stdlib JPEG encoder
-	return goJPEGCompress(pngData, outputPath, quality)
-}

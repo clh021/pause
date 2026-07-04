@@ -12,17 +12,14 @@ import (
 
 var resolveScreenshotHomeDir = os.UserHomeDir
 
-const latestScreenshotName = "Pause_Screenshot_Latest.png"
-
 // ScreenshotCapturer captures the current desktop into a PNG payload.
 type ScreenshotCapturer interface {
 	Capture(ctx context.Context) ([]byte, error)
 }
 
-// ScreenshotResult describes the stored screenshot artifacts for one capture.
+// ScreenshotResult describes the stored screenshot for one capture.
 type ScreenshotResult struct {
 	HistoryPath string
-	LatestPath  string
 	PNG         []byte
 }
 
@@ -49,7 +46,7 @@ func NewScreenshotService(capturer ScreenshotCapturer) (*ScreenshotService, erro
 	}, nil
 }
 
-// Capture stores a timestamped screenshot and refreshes the latest snapshot.
+// Capture stores a timestamped screenshot.
 func (s *ScreenshotService) Capture(ctx context.Context) (ScreenshotResult, error) {
 	if s == nil || s.capturer == nil {
 		return ScreenshotResult{}, errors.New("screenshot service unavailable")
@@ -74,14 +71,8 @@ func storeScreenshotBytes(dir string, png []byte, now time.Time) (ScreenshotResu
 		return ScreenshotResult{}, err
 	}
 
-	latestPath := filepath.Join(dir, latestScreenshotName)
-	if err := os.WriteFile(latestPath, png, 0o644); err != nil {
-		return ScreenshotResult{}, err
-	}
-
 	return ScreenshotResult{
 		HistoryPath: historyPath,
-		LatestPath:  latestPath,
 		PNG:         png,
 	}, nil
 }

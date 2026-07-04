@@ -139,12 +139,6 @@ func (s *Server) handleScreenshot(w http.ResponseWriter, r *http.Request) {
 		writeServerError(w, err)
 		return
 	}
-	if dir := s.screenshotDir(); dir != "" {
-		if _, err := writeMinuteShot(dir, result.PNG, s.now()); err != nil {
-			logx.Warnf("remote.screenshot.minute_shot_err err=%v", err)
-		}
-	}
-
 	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
 	w.WriteHeader(http.StatusOK)

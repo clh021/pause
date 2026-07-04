@@ -18,7 +18,7 @@ func (f fakeScreenshotCapturer) Capture(context.Context) ([]byte, error) {
 	return f.png, f.err
 }
 
-func TestStoreScreenshotBytesWritesHistoryAndLatest(t *testing.T) {
+func TestStoreScreenshotBytesWritesHistory(t *testing.T) {
 	dir := t.TempDir()
 	now := time.Date(2026, 6, 30, 11, 22, 33, 0, time.UTC)
 	result, err := storeScreenshotBytes(dir, []byte("png-data"), now)
@@ -30,23 +30,13 @@ func TestStoreScreenshotBytesWritesHistoryAndLatest(t *testing.T) {
 	if result.HistoryPath != wantHistory {
 		t.Fatalf("expected history path %q, got %q", wantHistory, result.HistoryPath)
 	}
-	if result.LatestPath != filepath.Join(dir, latestScreenshotName) {
-		t.Fatalf("unexpected latest path %q", result.LatestPath)
-	}
 
 	historyBytes, err := os.ReadFile(result.HistoryPath)
 	if err != nil {
 		t.Fatalf("ReadFile(history) err=%v", err)
 	}
-	latestBytes, err := os.ReadFile(result.LatestPath)
-	if err != nil {
-		t.Fatalf("ReadFile(latest) err=%v", err)
-	}
 	if !bytes.Equal(historyBytes, []byte("png-data")) {
 		t.Fatalf("unexpected history bytes %q", string(historyBytes))
-	}
-	if !bytes.Equal(latestBytes, []byte("png-data")) {
-		t.Fatalf("unexpected latest bytes %q", string(latestBytes))
 	}
 }
 
