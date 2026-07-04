@@ -16,7 +16,7 @@ func NewApp(configPath string) (*App, error) {
 }
 
 func NewHeadlessApp(configPath string) (*App, error) {
-	return newApp(configPath, newNoopDesktopController())
+	return newApp(configPath, newHeadlessDesktopController())
 }
 
 func newApp(configPath string, desktop desktopController) (*App, error) {

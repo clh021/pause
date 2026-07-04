@@ -4,8 +4,6 @@ package app
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"time"
 
 	"pause/internal/backend/domain/settings"
@@ -13,13 +11,6 @@ import (
 	"pause/internal/desktop"
 	"pause/internal/logx"
 )
-
-func overlaySkipMode(settings settings.Settings) skipMode {
-	if settings.Enforcement.OverlaySkipAllowed {
-		return skipModeNormal
-	}
-	return skipModeEmergency
-}
 
 func (c *wailsDesktopController) syncOverlay(ctx context.Context, state state.RuntimeState, settings settings.Settings) {
 	if until := c.screenshotSuspendUntil.Load(); until > 0 && time.Now().UnixNano() < until {
@@ -96,20 +87,3 @@ func (c *wailsDesktopController) syncOverlay(ctx context.Context, state state.Ru
 	c.lastOverlayTheme = theme
 }
 
-func overlayReasons(state state.RuntimeState) string {
-	if state.CurrentSession == nil || len(state.CurrentSession.Reasons) == 0 {
-		return "none"
-	}
-	parts := make([]string, 0, len(state.CurrentSession.Reasons))
-	for _, reason := range state.CurrentSession.Reasons {
-		parts = append(parts, fmt.Sprintf("%d", reason))
-	}
-	return strings.Join(parts, "+")
-}
-
-func overlayRemainingSec(state state.RuntimeState) int {
-	if state.CurrentSession == nil {
-		return 0
-	}
-	return state.CurrentSession.RemainingSec
-}
