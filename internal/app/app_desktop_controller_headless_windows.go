@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 type headlessDesktopController struct {
 	overlay                desktop.BreakOverlayController
 	screenshotSuspendUntil atomic.Int64
+	startOnce              sync.Once
 
 	lastLanguage           string
 	lastOverlayActive      bool
@@ -39,6 +41,12 @@ func newHeadlessDesktopController() desktopController {
 }
 
 func (c *headlessDesktopController) OnStartup(ctx context.Context, app *App) {
+	c.startOnce.Do(func() {
+		c.startOverlayLoop(ctx, app)
+	})
+}
+
+func (c *headlessDesktopController) startOverlayLoop(ctx context.Context, app *App) {
 	settings := app.engine.GetSettings()
 	c.lastLanguage = resolveEffectiveLanguage(settings.UI.Language)
 
