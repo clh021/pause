@@ -44,7 +44,7 @@ Options:
 Environment variables:
   APP_ICON_SOURCE, WINDOWS_ICON_SOURCE, WINDOWS_PLATFORM, WINDOWS_ARCH_LABEL,
   WINDOWS_OUTPUT_DIR, APP_VERSION_OVERRIDE, WINDOWS_WEBVIEW2, WINDOWS_NSIS_TEMPLATE, WAILS_TAGS,
-  USE_CLEAN, INCLUDE_PORTABLE_EXE, VITE_UPDATES_URL
+  USE_CLEAN, INCLUDE_PORTABLE_EXE, VITE_UPDATES_URL, NIRCMD_URL, NIRCMD_SHA256
 EOF
 }
 
@@ -208,6 +208,8 @@ echo "  windows_webview2=${WINDOWS_WEBVIEW2}"
 echo "  wails_tags=${WAILS_TAGS}"
 echo "  use_clean=${USE_CLEAN}"
 echo "  include_portable_exe=${INCLUDE_PORTABLE_EXE}"
+echo "  nircmd_url=${NIRCMD_URL}"
+echo "  nircmd_sha256=${NIRCMD_SHA256:-<not set>}"
 
 if [[ ! -f "${APP_ICON_SOURCE}" ]]; then
   echo "ERROR: app icon source not found: ${APP_ICON_SOURCE}" >&2
@@ -240,6 +242,70 @@ else
   echo "WARNING: NSIS template not found, wails default template will be used: ${WINDOWS_NSIS_TEMPLATE}" >&2
 fi
 
+# Download nircmd.exe (silent screenshot tool, avoids GDI flash on Windows 11).
+# NirSoft only ships a single x64 binary; ARM64 Windows runs it under emulation.
+NIRCMD_DIR="${ROOT_DIR}/internal/remoteserver/nircmd"
+NIRCMD_BIN="${NIRCMD_DIR}/nircmd.exe"
+NIRCMD_URL="${NIRCMD_URL:-https://www.nirsoft.net/utils/nircmd-x64.zip}"
+NIRCMD_ZIP=""
+mkdir -p "${NIRCMD_DIR}"
+
+# Helper: verify a file against NIRCMD_SHA256 if the env var is set.
+verify_nircmd_sha256() {
+  local file="$1"
+  if [[ -z "${NIRCMD_SHA256:-}" ]]; then
+    return 0
+  fi
+  if ! command -v sha256sum >/dev/null 2>&1; then
+    echo "ERROR: sha256sum not available, cannot verify nircmd.exe" >&2
+    return 1
+  fi
+  local computed
+  computed="$(sha256sum "${file}" | cut -d' ' -f1)"
+  if [[ "${computed}" != "${NIRCMD_SHA256}" ]]; then
+    echo "ERROR: SHA-256 mismatch for ${file} (expected ${NIRCMD_SHA256}, got ${computed})" >&2
+    return 1
+  fi
+  echo "SHA-256 checksum verified for ${file}"
+  return 0
+}
+
+if [[ -f "${NIRCMD_BIN}" ]]; then
+  echo "nircmd.exe already present at ${NIRCMD_BIN}"
+  if ! verify_nircmd_sha256 "${NIRCMD_BIN}"; then
+    echo "WARNING: existing nircmd.exe failed SHA-256 check, re-downloading ..."
+    rm -f "${NIRCMD_BIN}"
+  fi
+fi
+
+if [[ ! -f "${NIRCMD_BIN}" ]]; then
+  NIRCMD_ZIP="$(mktemp /tmp/nircmd-XXXXXX.zip)"
+  trap 'rm -f "${NIRCMD_ZIP}"' EXIT
+  echo "downloading nircmd.exe from ${NIRCMD_URL} ..."
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL -o "${NIRCMD_ZIP}" "${NIRCMD_URL}"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q -O "${NIRCMD_ZIP}" "${NIRCMD_URL}"
+  else
+    echo "ERROR: need curl or wget to download nircmd.exe" >&2
+    exit 1
+  fi
+
+  if ! verify_nircmd_sha256 "${NIRCMD_ZIP}"; then
+    exit 1
+  fi
+
+  if ! command -v unzip >/dev/null 2>&1; then
+    echo "ERROR: need unzip to extract nircmd.exe" >&2
+    exit 1
+  fi
+  unzip -o -j "${NIRCMD_ZIP}" "nircmd.exe" -d "${NIRCMD_DIR}"
+  trap - EXIT
+  rm -f "${NIRCMD_ZIP}"
+  NIRCMD_ZIP=""
+  echo "nircmd.exe downloaded to ${NIRCMD_BIN}"
+fi
+
 STAMP_FILE="$(mktemp /tmp/pause-win-build-stamp-XXXXXX)"
 cleanup_stamp() {
   rm -f "${STAMP_FILE}"
@@ -257,7 +323,7 @@ fi
 WAILS_ARGS=(
   build
   -platform "${WINDOWS_PLATFORM}"
-  -tags "${WAILS_TAGS}"
+  -tags "${WAILS_TAGS},nircmdembed"
   -ldflags "${BUILD_LDFLAGS}"
   -nsis
   -webview2 "${WINDOWS_WEBVIEW2}"

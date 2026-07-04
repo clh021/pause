@@ -44,7 +44,8 @@ var (
 	procBitBlt                 = gdi32CaptureDLL.NewProc("BitBlt")
 	procGetDIBits              = gdi32CaptureDLL.NewProc("GetDIBits")
 
-	// Overridable in tests
+	// lookupWindowsCaptureTool is overridable in tests to stub nircmd.exe lookup
+	// without requiring the real binary on the build machine.
 	lookupWindowsCaptureTool = exec.LookPath
 )
 
@@ -87,17 +88,51 @@ func (windowsScreenshotCapturer) Capture(ctx context.Context) ([]byte, error) {
 // captureViaNircmd uses nircmd.exe (https://www.nirsoft.net/utils/nircmd.html)
 // to take a silent screenshot. nircmd is a tiny freeware utility that does
 // not cause any screen flash.
+//
+// Preference order:
+//  1. Embedded nircmd.exe (bundled in production builds via //go:embed)
+//  2. nircmd.exe found in PATH (for development environments)
+//  3. Fall through to caller (which falls back to GDI BitBlt)
 func captureViaNircmd(ctx context.Context) ([]byte, error) {
-	if _, err := lookupWindowsCaptureTool("nircmd.exe"); err != nil {
+	// Try embedded nircmd.exe first (nircmdembed build tag).
+	// If the embedded binary fails (e.g. architecture mismatch), fall through
+	// to the PATH-based nircmd before giving up.
+	if exePath, cleanup, err := getEmbeddedNircmdPath(); err == nil {
+		defer cleanup()
+		if data, err := runNircmd(ctx, exePath); err == nil {
+			return data, nil
+		}
+	}
+
+	// Fallback: look up nircmd.exe in PATH and use the resolved path.
+	resolvedPath, err := lookupWindowsCaptureTool("nircmd.exe")
+	if err != nil {
 		return nil, err
 	}
-	tmpFile := filepath.Join(os.TempDir(), "pause-ss-nircmd.png")
-	cmd := exec.CommandContext(ctx, "nircmd.exe", "savescreenshot", tmpFile)
+	return runNircmd(ctx, resolvedPath)
+}
+
+// runNircmd executes nircmd.exe with a savescreenshot command and returns PNG data.
+// It writes a unique temp file to avoid races between concurrent captures.
+//
+// We use CreateTemp to generate a unique random path, then close the handle
+// because nircmd.exe needs to create its own handle on the path. There is a
+// tiny window between close and nircmd opening the file, but the random path
+// in a private temp directory makes exploitation infeasible in practice.
+func runNircmd(ctx context.Context, exePath string) ([]byte, error) {
+	tmpFile, err := os.CreateTemp("", "pause-ss-nircmd-*.png")
+	if err != nil {
+		return nil, fmt.Errorf("create temp file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+	cmd := exec.CommandContext(ctx, exePath, "savescreenshot", tmpPath)
 	if output, err := cmd.CombinedOutput(); err != nil {
+		os.Remove(tmpPath)
 		return nil, fmt.Errorf("nircmd failed: %w: %s", err, string(output))
 	}
-	defer os.Remove(tmpFile)
-	return os.ReadFile(tmpFile)
+	defer os.Remove(tmpPath)
+	return os.ReadFile(tmpPath)
 }
 
 func captureViaGDI() ([]byte, error) {

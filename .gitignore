@@ -11,6 +11,8 @@ frontend/package.json.md5
 frontend/wailsjs/
 internal/remoteserver/static/
 *.log
+# Downloaded nircmd.exe for Windows silent screenshot (build-time dependency)
+internal/remoteserver/nircmd/nircmd.exe
 # Packaging/build outputs
 pause
 skills-lock.json
