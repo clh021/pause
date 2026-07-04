@@ -18,6 +18,9 @@ WAILS_TAGS="${WAILS_TAGS:-wails}"
 USE_CLEAN="${USE_CLEAN:-0}"
 INCLUDE_PORTABLE_EXE="${INCLUDE_PORTABLE_EXE:-0}"
 VITE_UPDATES_URL="${VITE_UPDATES_URL:-}"
+NIRCMD_URL="${NIRCMD_URL:-https://www.nirsoft.net/utils/nircmd-x64.zip}"
+NIRCMD_SHA256="${NIRCMD_SHA256:-}"
+NIRCMD_ZIP=""
 ARTIFACT_VERSION=""
 
 print_help() {
@@ -246,8 +249,6 @@ fi
 # NirSoft only ships a single x64 binary; ARM64 Windows runs it under emulation.
 NIRCMD_DIR="${ROOT_DIR}/internal/remoteserver/nircmd"
 NIRCMD_BIN="${NIRCMD_DIR}/nircmd.exe"
-NIRCMD_URL="${NIRCMD_URL:-https://www.nirsoft.net/utils/nircmd-x64.zip}"
-NIRCMD_ZIP=""
 mkdir -p "${NIRCMD_DIR}"
 
 # Helper: verify a file against NIRCMD_SHA256 if the env var is set.
