@@ -280,7 +280,29 @@ analytics 查询也全部基于 `history.db`。
 - 开机启动：`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
 - 通知设置跳转：`ms-settings:notifications`
 
-## 8. 维护原则
+## 8. 远程控制服务
+
+远程 HTTP 控制服务（`internal/remoteserver/`）是一个独立的 HTTP 服务模块，与主应用生命周期一同启动和关闭。
+
+### 分层位置
+
+```
+app 启动时初始化 remoteserver.Server
+  → 监听配置的地址与端口（默认 0.0.0.0:18680）
+  → 通过 requireAuth 中间件保护所有 /api/* 路由
+```
+
+### Token 认证
+
+- 配置保存在 `remote_server.json` 中
+- 首次启用时自动生成 48 字符 hex 随机 token（`crypto/rand`）
+- 所有 `/api/*` 请求需携带 token（`Authorization: Bearer` / Cookie / query 参数）
+- token 比对使用 `crypto/subtle.ConstantTimeCompare`（常量时间比较）
+- 登录成功设置 HttpOnly、SameSite=Strict 的 30 天 Cookie
+
+详细说明见 [远程控制与 Token 认证](./remote-server.md)。
+
+## 9. 维护原则
 
 - 文档只写当前实现
 - 代码改动后优先同步本文档

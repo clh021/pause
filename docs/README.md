@@ -15,6 +15,9 @@
 - [打包说明](./packaging.md)
   当前打包、发版和更新源相关流程。
 
+- [远程控制与 Token 认证](./remote-server.md)
+  远程 HTTP 控制服务、token 认证机制、配置文件位置（Windows / Linux / macOS）。
+
 ## 备注文档
 
 - [History DB Migration Plan](./notes/historydb-migration-plan.md)
